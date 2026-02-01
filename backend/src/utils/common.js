@@ -206,11 +206,11 @@ function getCurrencyMinorUnitRatio(currency) {
     return currencyMap[currency.toLowerCase()] || 100; // Default to 100 for unknown currencies
 }
 
-/**
- * Generate a short, URL-safe session ID (exactly 30 chars)
- * Optimized for Orange Money order_id limit (30 chars) and fast DB lookup
- * @returns {string} 30-character hex string
- */
+const generateSessionId = () => {
+    // 15 bytes = 30 hex characters
+    return require('crypto').randomBytes(15).toString('hex');
+};
+
 /**
  * Converts a local image file to a Base64 Data URL
  * @param {string} filePath - Absolute path to the image file
