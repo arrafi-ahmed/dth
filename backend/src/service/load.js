@@ -1,0 +1,280 @@
+const { query } = require("../db");
+const CustomError = require("../model/CustomError");
+const { v4: uuidv4 } = require("uuid");
+const crypto = require("crypto");
+
+/**
+ * Generate a random numeric PIN of specified length
+ */
+const generatePIN = (length = 6) => {
+    return Math.floor(100000 + Math.random() * 900000).toString().substring(0, length);
+};
+
+/**
+ * Generate a unique Load ID
+ */
+const generateLoadId = async () => {
+    const prefix = "DTH-";
+    const random = crypto.randomBytes(3).toString("hex").toUpperCase();
+    const loadId = `${prefix}${random}`;
+
+    // Check for uniqueness
+    const result = await query("SELECT id FROM loads WHERE load_id = $1", [loadId]);
+    if (result.rowCount > 0) {
+        return generateLoadId(); // Recurse if collision
+    }
+    return loadId;
+};
+
+/**
+ * Log an action for a specific load
+ */
+const logAction = async ({ loadId, action, details = {}, userId = null }) => {
+    const sql = `
+        INSERT INTO load_logs (load_id, action, details, user_id)
+        VALUES ($1, $2, $3, $4)
+    `;
+    await query(sql, [loadId, action, JSON.stringify(details), userId]);
+};
+
+exports.getLoads = async () => {
+    const sql = `SELECT * FROM loads ORDER BY created_at DESC`;
+    const result = await query(sql);
+    return result.rows;
+};
+
+exports.getLoadById = async (id) => {
+    const sql = `SELECT * FROM loads WHERE id = $1`;
+    const result = await query(sql, [id]);
+    if (result.rowCount === 0) {
+        throw new CustomError("Load not found", 404);
+    }
+
+    const load = result.rows[0];
+
+    // Fetch confirmation details if available
+    if (load.status === 'USED') {
+        const logSql = `
+            SELECT details->>'dealerName' as "dealerName", created_at as "timestamp"
+            FROM load_logs 
+            WHERE load_id = $1 AND action = 'RELEASE_CONFIRMED'
+            ORDER BY created_at DESC
+            LIMIT 1
+        `;
+        const logResult = await query(logSql, [id]);
+        if (logResult.rowCount > 0) {
+            load.confirmation = logResult.rows[0];
+        }
+    }
+
+    return load;
+};
+
+exports.getLoadByToken = async (token) => {
+    const sql = `SELECT * FROM loads WHERE verification_token = $1`;
+    const result = await query(sql, [token]);
+    if (result.rowCount === 0) {
+        throw new CustomError("Invalid verification link", 404);
+    }
+    return result.rows[0];
+};
+
+exports.createLoad = async ({ payload, currentUser }) => {
+    const {
+        dealerName,
+        vehicleYear,
+        vehicleMake,
+        vehicleModel,
+        vinLast6,
+        carrierName,
+        driverName,
+        driverLicenseInfo,
+        driverPhoto,
+        truckPlate,
+        trailerPlate,
+        pickupWindowStart,
+        pickupWindowEnd
+    } = payload;
+
+    const loadId = await generateLoadId();
+    const pin = generatePIN();
+    const token = uuidv4();
+
+    const sql = `
+        INSERT INTO loads (
+            load_id, dealer_name, vehicle_year, vehicle_make, vehicle_model, 
+            vin_last_6, carrier_name, driver_name, driver_license_info, 
+            driver_photo, truck_plate, trailer_plate, pickup_window_start, 
+            pickup_window_end, pin, verification_token, status, created_by
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'DRAFT', $17)
+        RETURNING *
+    `;
+
+    const values = [
+        loadId, dealerName, vehicleYear, vehicleMake, vehicleModel,
+        vinLast6, carrierName, driverName, driverLicenseInfo,
+        driverPhoto, truckPlate, trailerPlate, pickupWindowStart,
+        pickupWindowEnd, pin, token, currentUser?.id
+    ];
+
+    const result = await query(sql, values);
+    const newLoad = result.rows[0];
+
+    // No logging here as per user request (only successful release)
+    return newLoad;
+};
+
+exports.updateLoad = async (id, payload) => {
+    const {
+        dealerName,
+        vehicleYear,
+        vehicleMake,
+        vehicleModel,
+        vinLast6,
+        carrierName,
+        driverName,
+        driverLicenseInfo,
+        truckPlate,
+        trailerPlate,
+        pickupWindowStart,
+        pickupWindowEnd
+    } = payload;
+
+    const sql = `
+        UPDATE loads 
+        SET 
+            dealer_name = $1, 
+            vehicle_year = $2, 
+            vehicle_make = $3, 
+            vehicle_model = $4, 
+            vin_last_6 = $5, 
+            carrier_name = $6, 
+            driver_name = $7, 
+            driver_license_info = $8, 
+            truck_plate = $9, 
+            trailer_plate = $10, 
+            pickup_window_start = $11, 
+            pickup_window_end = $12,
+            updated_at = NOW()
+        WHERE id = $13
+        RETURNING *
+    `;
+
+    const values = [
+        dealerName, vehicleYear, vehicleMake, vehicleModel,
+        vinLast6, carrierName, driverName, driverLicenseInfo,
+        truckPlate, trailerPlate, pickupWindowStart,
+        pickupWindowEnd, id
+    ];
+
+    const result = await query(sql, values);
+    if (result.rowCount === 0) {
+        throw new CustomError("Load not found", 404);
+    }
+
+    return result.rows[0];
+};
+
+exports.updateStatus = async (id, status, currentUser) => {
+    const sql = `UPDATE loads SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`;
+    const result = await query(sql, [status, id]);
+    if (result.rowCount === 0) {
+        throw new CustomError("Load not found", 404);
+    }
+
+    // No logging here as per user request (only successful release)
+    return result.rows[0];
+};
+
+exports.confirmRelease = async ({ token, pin, dealerName }) => {
+    const load = await exports.getLoadByToken(token);
+
+    if (load.status === "USED") {
+        throw new CustomError("ALREADY USED", 400);
+    }
+
+    if (load.status !== "VALID") {
+        throw new CustomError("DO NOT RELEASE - Status is not VALID", 400);
+    }
+
+    // Check pickup window
+    const now = new Date();
+    if (load.pickupWindowStart && now < new Date(load.pickupWindowStart)) {
+        const startTime = new Date(load.pickupWindowStart).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+        throw new CustomError(`LOAD NOT YET ACTIVE - Pickup window starts at ${startTime}`, 400);
+    }
+    if (load.pickupWindowEnd && now > new Date(load.pickupWindowEnd)) {
+        throw new CustomError("LOAD EXPIRED", 400);
+    }
+
+    // Validate PIN
+    if (load.pin !== pin) {
+        // No logging here as per user request (only successful release)
+        throw new CustomError("INVALID PIN", 400);
+    }
+
+    // Success - Update status
+    const updateSql = `UPDATE loads SET status = 'USED', updated_at = NOW() WHERE id = $1 RETURNING *`;
+    const result = await query(updateSql, [load.id]);
+    const updatedLoad = result.rows[0];
+
+    await logAction({
+        loadId: load.id,
+        action: "RELEASE_CONFIRMED",
+        details: { dealerName, timestamp: now },
+        userId: null // Public action
+    });
+
+    return updatedLoad;
+};
+
+exports.validateLoad = async (id, currentUser) => {
+    const sql = `UPDATE loads SET status = 'VALID', updated_at = NOW() WHERE id = $1 RETURNING *`;
+    const result = await query(sql, [id]);
+    if (result.rowCount === 0) {
+        throw new CustomError("Load not found", 404);
+    }
+
+    // No logging here as per user request (only successful release)
+    return result.rows[0];
+};
+
+exports.voidLoad = async (id, currentUser) => {
+    const sql = `UPDATE loads SET status = 'VOID', updated_at = NOW() WHERE id = $1 RETURNING *`;
+    const result = await query(sql, [id]);
+    if (result.rowCount === 0) {
+        throw new CustomError("Load not found", 404);
+    }
+
+    // No logging here as per user request (only successful release)
+    return result.rows[0];
+};
+exports.deleteLoad = async (id) => {
+    // Transaction-like deletion (though not explicit here, we delete logs first usually)
+    // Actually, if we have foreign keys with ON DELETE CASCADE, it's easier.
+    // Let's check schema later if needed, for now just simple delete.
+    await query("DELETE FROM load_logs WHERE load_id = $1", [id]);
+    const sql = `DELETE FROM loads WHERE id = $1 RETURNING *`;
+    const result = await query(sql, [id]);
+    if (result.rowCount === 0) {
+        throw new CustomError("Load not found", 404);
+    }
+    return result.rows[0];
+};
+exports.getReleaseLogs = async () => {
+    const sql = `
+        SELECT 
+            ll.id,
+            l.load_id as "loadId",
+            l.id as "loadRawId",
+            ll.details->>'dealerName' as "dealerName",
+            ll.created_at as "timestamp"
+        FROM load_logs ll
+        JOIN loads l ON ll.load_id = l.id
+        WHERE ll.action = 'RELEASE_CONFIRMED'
+        ORDER BY ll.created_at DESC
+    `;
+    const result = await query(sql);
+    return result.rows;
+};
