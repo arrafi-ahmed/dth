@@ -11,7 +11,7 @@ async function getBrandingData() {
 
         // Use the new DTH logo as the primary logo, fallback to settings if needed
         let logoUrl = getApiPublicImgUrl('dth-logo.png', 'header-logo');
-        const logoPath = getFilePath('dth-logo.png', 'headerLogo');
+        const logoPath = "/home/raf/apps/dth/frontend/public/img/logo-full.png";
         const logoBase64 = await getBase64Image(logoPath);
 
         let logoDarkUrl = null;
