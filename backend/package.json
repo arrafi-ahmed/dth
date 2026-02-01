@@ -6,7 +6,7 @@
   "scripts": {
     "in": "npm install",
     "up": "npm update --save",
-    "dev": "NODE_ENV=development nodemon --signal SIGTERM app.js",
+    "dev": "NODE_ENV=development nodemon app.js",
     "dev:clean": "pkill -f 'node.*app.js' || true && NODE_ENV=development nodemon app.js",
     "prod": "NODE_ENV=production node app.js",
     "build": "",

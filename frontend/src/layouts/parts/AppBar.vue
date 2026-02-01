@@ -249,6 +249,7 @@
           <div class="ml-4">
             <div class="text-caption text-medium-emphasis mb-n1">{{ getGreetings }}</div>
             <div class="text-h6 font-weight-bold">{{ getFirstName }}</div>
+            <div class="text-caption text-medium-emphasis mt-n1">{{ currentUser?.email }}</div>
           </div>
         </div>
       </v-list-item>

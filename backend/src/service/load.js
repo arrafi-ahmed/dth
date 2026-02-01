@@ -71,7 +71,12 @@ exports.getLoadById = async (id) => {
 };
 
 exports.getLoadByToken = async (token) => {
-    const sql = `SELECT * FROM loads WHERE verification_token = $1`;
+    const sql = `
+        SELECT l.*, u.email as "dispatcherEmail", u.full_name as "dispatcherName"
+        FROM loads l
+        LEFT JOIN app_user u ON l.created_by = u.id
+        WHERE l.verification_token = $1
+    `;
     const result = await query(sql, [token]);
     if (result.rowCount === 0) {
         throw new CustomError("Invalid verification link", 404);
@@ -225,6 +230,21 @@ exports.confirmRelease = async ({ token, pin, dealerName }) => {
         details: { dealerName, timestamp: now },
         userId: null // Public action
     });
+
+    // Send email notification to dispatcher
+    if (load.dispatcherEmail) {
+        const { sendReleaseNotification } = require("./email");
+        const vehicleInfo = `${load.vehicleYear || ''} ${load.vehicleMake || ''} ${load.vehicleModel || ''}`.trim() || load.vinLast6 || 'Vehicle';
+
+        sendReleaseNotification({
+            to: load.dispatcherEmail,
+            dispatcherName: load.dispatcherName || 'Dispatcher',
+            loadId: load.loadId,
+            vehicleInfo,
+            dealerName,
+            timestamp: now.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+        }).catch(err => console.error("Failed to send release notification:", err));
+    }
 
     return updatedLoad;
 };

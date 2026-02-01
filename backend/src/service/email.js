@@ -86,3 +86,43 @@ exports.sendPasswordReset = async ({ to, token }) => {
         throw error;
     }
 };
+
+const loadReleasedTemplatePath = path.join(
+    __dirname,
+    "..",
+    "templates",
+    "loadReleasedEmail.html",
+);
+const loadReleasedTemplateSource = fs.readFileSync(loadReleasedTemplatePath, "utf8");
+const compileLoadReleasedTemplate = handlebars.compile(loadReleasedTemplateSource);
+
+exports.sendReleaseNotification = async ({ to, dispatcherName, loadId, vehicleInfo, dealerName, timestamp }) => {
+    try {
+        const header = await getBrandingData();
+        const html = compileLoadReleasedTemplate({
+            header,
+            dispatcherName,
+            loadId,
+            vehicleInfo,
+            dealerName,
+            timestamp,
+            currentYear: new Date().getFullYear(),
+        });
+
+        const result = await exports.sendMail({
+            to,
+            subject: `Vehicle Released: ${loadId} - ${appInfo.name}`,
+            html,
+        });
+
+        return {
+            success: true,
+            messageId: result.messageId,
+            to,
+        };
+    } catch (error) {
+        console.error("Error sending release notification email:", error);
+        // Don't throw to prevent blocking the release process if email fails
+        return { success: false, error: error.message };
+    }
+};

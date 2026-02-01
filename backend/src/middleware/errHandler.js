@@ -27,7 +27,6 @@ const globalErrHandler = (err, req, res, next) => {
     }
     return next(err);
 };
-
 const uncaughtErrHandler = () => {
     process.on("uncaughtException", (err) => {
         printError("UNCAUGHT", err);
