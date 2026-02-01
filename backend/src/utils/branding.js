@@ -1,4 +1,5 @@
 const settingsService = require("../service/settingsService");
+const path = require("path");
 const { getApiPublicImgUrl, appInfo, getBase64Image, getFilePath } = require("./common");
 
 /**
@@ -11,9 +12,10 @@ async function getBrandingData() {
 
         // Use the new DTH logo as the primary logo, fallback to settings if needed
         let logoUrl = getApiPublicImgUrl('logo-full.png', 'header-logo');
-        const logoPath = path.join(__dirname, "..", "..", "public", "header-logo", "logo-full.png");
+        const logoPath = path.join(__dirname, "..", "assets", "logo-full.png");
         console.log("[BRANDING] Attempting to encode logo from:", logoPath);
         const logoBase64 = await getBase64Image(logoPath);
+        console.log("[BRANDING] Logo Base64 generated:", !!logoBase64);
 
         let logoDarkUrl = null;
         let logoDarkBase64 = null;
@@ -38,8 +40,10 @@ async function getBrandingData() {
         };
     } catch (error) {
         console.error("Error fetching branding data:", error);
+        const logoUrl = getApiPublicImgUrl('logo-full.png', 'header-logo');
         return {
-            logo: null,
+            logo: logoUrl,
+            logoBase64: logoUrl,
             logoPosition: 'left',
             appName: appInfo.name || 'Ticketi',
             primaryColor: '#ED2939'
