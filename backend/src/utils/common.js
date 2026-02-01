@@ -211,9 +211,21 @@ function getCurrencyMinorUnitRatio(currency) {
  * Optimized for Orange Money order_id limit (30 chars) and fast DB lookup
  * @returns {string} 30-character hex string
  */
-const generateSessionId = () => {
-    // 15 bytes = 30 hex characters
-    return require('crypto').randomBytes(15).toString('hex');
+/**
+ * Converts a local image file to a Base64 Data URL
+ * @param {string} filePath - Absolute path to the image file
+ * @returns {Promise<string|null>} Base64 Data URL or null if error
+ */
+const getBase64Image = async (filePath) => {
+    try {
+        const data = await fs.readFile(filePath);
+        const extension = path.extname(filePath).replace('.', '');
+        const mimeType = extension === 'svg' ? 'image/svg+xml' : `image/${extension}`;
+        return `data:${mimeType};base64,${data.toString('base64')}`;
+    } catch (error) {
+        console.error("Error reading image for base64:", error);
+        return null;
+    }
 };
 
 module.exports = {
@@ -223,6 +235,8 @@ module.exports = {
     dirMap,
     appInfo,
     getApiPublicImgUrl,
+    getFilePath,
+    getBase64Image,
     formatTime,
     ifAdmin,
     excludedSecurityURLs,
