@@ -221,9 +221,11 @@ const getBase64Image = async (filePath) => {
         const data = await fs.readFile(filePath);
         const extension = path.extname(filePath).replace('.', '');
         const mimeType = extension === 'svg' ? 'image/svg+xml' : `image/${extension}`;
-        return `data:${mimeType};base64,${data.toString('base64')}`;
+        const base64 = `data:${mimeType};base64,${data.toString('base64')}`;
+        console.log(`[BASE64] Successfully converted image: ${filePath} (length: ${base64.length})`);
+        return base64;
     } catch (error) {
-        console.error("Error reading image for base64:", error);
+        console.error(`[BASE64 ERROR] Failed to read image at ${filePath}:`, error.message);
         return null;
     }
 };

@@ -10,8 +10,9 @@ async function getBrandingData() {
         const appearance = await settingsService.getAppearanceSettings();
 
         // Use the new DTH logo as the primary logo, fallback to settings if needed
-        let logoUrl = getApiPublicImgUrl('dth-logo.png', 'header-logo');
-        const logoPath = "/home/raf/apps/dth/frontend/public/img/logo-full.png";
+        let logoUrl = getApiPublicImgUrl('logo-full.png', 'header-logo');
+        const logoPath = path.join(__dirname, "..", "..", "public", "header-logo", "logo-full.png");
+        console.log("[BRANDING] Attempting to encode logo from:", logoPath);
         const logoBase64 = await getBase64Image(logoPath);
 
         let logoDarkUrl = null;
@@ -22,6 +23,8 @@ async function getBrandingData() {
             const logoDarkPath = getFilePath(settings.logoImageDark, 'headerLogo');
             logoDarkBase64 = await getBase64Image(logoDarkPath);
         }
+
+        console.log("[BRANDING] Logo Base64 generated:", !!logoBase64);
 
         return {
             logo: logoUrl, // Force DTH logo for PDFs/Emails
