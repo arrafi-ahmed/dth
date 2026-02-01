@@ -50,7 +50,9 @@ exports.generateVehicleReleasePdf = async (load, timezone = 'UTC') => {
     const options = {
         format: "A4",
         margin: { top: "0px", bottom: "0px", left: "0px", right: "0px" },
-        printBackground: true
+        printBackground: true,
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null
     };
 
     return await htmlPdf.generatePdf(file, options);
