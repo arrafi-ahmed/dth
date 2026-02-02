@@ -91,18 +91,10 @@
 
 <body>
     <div class="container">
-        <div class="header" style="text-align: {{header.logoPosition}};">
-            {{#if header.logo}}
-            <img src="{{header.logo}}" alt="{{header.appName}} Logo">
-            {{else}}
-            <h1 class="header-text" style="color: {{header.primaryColor}};">{{header.appName}}</h1>
-            {{/if}}
-        </div>
         <div class="content">
             <h2>Vehicle Released Successfully</h2>
             <p>Hello {{dispatcherName}},</p>
-            <p>We are notifying you that the following vehicle has been successfully released and confirmed by the
-                dealer.</p>
+            <p>The following vehicle has been released and confirmed by the dealer.</p>
 
             <div class="details">
                 <p><strong>Tracking ID:</strong> {{loadId}}</p>
@@ -112,13 +104,11 @@
                 <p><strong>Release Time:</strong> {{timestamp}}</p>
             </div>
 
-            <p>You can view all your release records in the history section of your dashboard.</p>
+            <p>The official release authorization PDF is attached.</p>
             <p>Best regards,<br>The {{header.appName}} Team</p>
         </div>
         <div class="footer">
-            <p>&copy; {{currentYear}} {{header.appName}}. All rights reserved.</p>
-            <p style="font-size: 12px; color: #94a3b8; margin-top: 12px;">This is an automated security notification.
-            </p>
+            <p>&copy; {{currentYear}} {{header.appName}}</p>
         </div>
     </div>
 </body>

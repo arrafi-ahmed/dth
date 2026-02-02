@@ -99,13 +99,15 @@ const compileLoadReleasedTemplate = handlebars.compile(loadReleasedTemplateSourc
 
 exports.DISPATCH_EMAIL = DISPATCH_EMAIL;
 
-exports.sendLoadValidationNotification = async ({ loadId, vehicleInfo, pdfBuffer }) => {
+exports.sendLoadValidationNotification = async ({ loadId, vehicleInfo, pdfBuffer, to = DISPATCH_EMAIL, subject }) => {
     try {
         const header = await getBrandingData();
+        const emailSubject = subject || `Load Validated: ${loadId} - ${appInfo.name}`;
+
         const html = `
             <div style="font-family: sans-serif; max-width: 600px; margin: auto;">
-                <h1>Load Validated & Ready for Release</h1>
-                <p>A new load has been validated and the Vehicle Release authorization has been generated.</p>
+                <h1>Load Document Generated</h1>
+                <p>A new load document has been generated.</p>
                 <div style="background: #f4f4f4; padding: 20px; border-radius: 8px; margin: 20px 0;">
                     <p><strong>Load ID:</strong> ${loadId}</p>
                     <p><strong>Vehicle:</strong> ${vehicleInfo}</p>
@@ -117,8 +119,8 @@ exports.sendLoadValidationNotification = async ({ loadId, vehicleInfo, pdfBuffer
         `;
 
         await exports.sendMail({
-            to: DISPATCH_EMAIL,
-            subject: `Load Validated: ${loadId} - ${appInfo.name}`,
+            to,
+            subject: emailSubject,
             html,
             attachments: [{
                 filename: `DTH_Release_${loadId}.pdf`,
@@ -133,7 +135,7 @@ exports.sendLoadValidationNotification = async ({ loadId, vehicleInfo, pdfBuffer
     }
 };
 
-exports.sendReleaseNotification = async ({ to, dispatcherName, loadId, vehicleInfo, confirmedBy, timestamp, attachments = [] }) => {
+exports.sendReleaseNotification = async ({ to, dispatcherName, loadId, vehicleInfo, confirmedBy, pickupLocation, timestamp, attachments = [] }) => {
     try {
         const header = await getBrandingData();
         const html = compileLoadReleasedTemplate({
@@ -141,7 +143,8 @@ exports.sendReleaseNotification = async ({ to, dispatcherName, loadId, vehicleIn
             dispatcherName,
             loadId,
             vehicleInfo,
-            dealerName: confirmedBy, // Using dealerName field for the verifier name for now
+            confirmedBy, // Correctly mapped now
+            pickupLocation, // Added
             timestamp,
             currentYear: new Date().getFullYear(),
         });

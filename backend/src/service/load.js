@@ -134,6 +134,24 @@ exports.createLoad = async ({ payload, currentUser }) => {
     const result = await query(sql, values);
     const newLoad = result.rows[0];
 
+    // Email PDF to creator (dispatcher)
+    if (currentUser && currentUser.email) {
+        const vehicleInfo = `${newLoad.vehicleYear || ''} ${newLoad.vehicleMake || ''} ${newLoad.vehicleModel || ''}`.trim() || newLoad.vinLast6 || 'Vehicle';
+
+        // Generate PDF and send email
+        pdfService.generateVehicleReleasePdf(newLoad)
+            .then(pdfBuffer => {
+                return emailService.sendLoadValidationNotification({
+                    loadId: newLoad.loadId,
+                    vehicleInfo,
+                    pdfBuffer,
+                    to: currentUser.email,
+                    subject: `Load Created: ${newLoad.loadId} - DTH Logistics`
+                });
+            })
+            .catch(err => console.error("Failed to email PDF to creator:", err));
+    }
+
     // No logging here as per user request (only successful release)
     return newLoad;
 };
@@ -271,6 +289,7 @@ exports.confirmRelease = async ({ token, pin, confirmedBy }) => {
             loadId: load.loadId,
             vehicleInfo,
             confirmedBy,
+            pickupLocation: load.pickupLocation || load.pickup_location, // Added pickupLocation
             timestamp: now.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
             attachments
         }).catch(err => console.error("Failed to send release notification:", err));
