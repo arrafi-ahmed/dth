@@ -25,7 +25,7 @@
   const loads = ref([])
   const headers = [
     { title: 'Load ID', key: 'loadId', sortable: true },
-    { title: 'Dealer', key: 'dealerName', sortable: true },
+    { title: 'Pickup Location', key: 'pickupLocation', sortable: true },
     { title: 'Vehicle', key: 'vehicle', sortable: false },
     { title: 'Carrier', key: 'carrierName', sortable: true },
     { title: 'Window', key: 'window', sortable: false },

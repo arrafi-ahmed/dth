@@ -44,7 +44,7 @@
       isConfirming.value = true
       await $axios.post(`/verify/${token}/confirm`, {
         pin: enteredPin.value,
-        dealerName: load.value.dealerName,
+        confirmedBy: load.value.pickupLocation,
       })
       success.value = true
     } catch (err) {
@@ -128,7 +128,7 @@
               <div class="bg-grey-lighten-3 pa-4 rounded-lg text-left text-caption">
                 <div class="font-weight-bold mb-1">Status: USED</div>
                 <div v-if="load.updatedAt">Timestamp: {{ new Date(load.updatedAt).toLocaleString() }}</div>
-                <div>Dealer: {{ load.dealerName }}</div>
+                <div>Pickup Location: {{ load.pickupLocation }}</div>
               </div>
 
               <div class="mt-12 text-grey-darken-1 text-caption">
@@ -185,6 +185,21 @@
                   <div class="d-flex align-center justify-space-between">
                     <span class="text-body-2 text-grey">Trailer Plate</span>
                     <span class="text-body-1 font-weight-bold">{{ load.plates.trailer }}</span>
+                  </div>
+                </div>
+
+                <v-divider v-if="load.pickupContact || load.pickupInfo" class="mb-6" />
+
+                <!-- Pickup Details -->
+                <div v-if="load.pickupContact || load.pickupInfo" class="mb-6">
+                  <div class="text-caption text-grey text-uppercase font-weight-bold mb-2">Pickup Details</div>
+                  <div v-if="load.pickupContact" class="d-flex align-center justify-space-between mb-1">
+                    <span class="text-body-2 text-grey">Contact</span>
+                    <span class="text-body-1 font-weight-bold">{{ load.pickupContact }}</span>
+                  </div>
+                  <div v-if="load.pickupInfo" class="mt-2">
+                    <span class="text-body-2 text-grey d-block mb-1">Instructions</span>
+                    <div class="text-body-2 bg-grey-lighten-4 pa-2 rounded">{{ load.pickupInfo }}</div>
                   </div>
                 </div>
 

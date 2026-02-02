@@ -41,6 +41,9 @@ exports.generateVehicleReleasePdf = async (load, timezone = 'UTC') => {
         trailerPlate: load.trailerPlate,
         pickupWindowStart: load.pickupWindowStart ? formatTime(load.pickupWindowStart, timezone) : "N/A",
         pickupWindowEnd: load.pickupWindowEnd ? formatTime(load.pickupWindowEnd, timezone) : "N/A",
+        pickupLocation: load.pickupLocation,
+        pickupInfo: load.pickupInfo,
+        pickupContact: load.pickupContact,
         qrDataUrl
     });
 

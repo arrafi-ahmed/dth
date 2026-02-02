@@ -80,7 +80,7 @@ CREATE TABLE loads
 (
     id                  SERIAL PRIMARY KEY,
     load_id             VARCHAR(50) NOT NULL UNIQUE,
-    dealer_name         VARCHAR(255) NOT NULL,
+    pickup_location     VARCHAR(255) NOT NULL,
     vehicle_year        INT,
     vehicle_make        VARCHAR(100),
     vehicle_model       VARCHAR(100),
@@ -97,6 +97,8 @@ CREATE TABLE loads
     verification_token  UUID UNIQUE,
     status              VARCHAR(20) DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'VALID', 'USED', 'EXPIRED', 'VOID')),
     created_by          INT REFERENCES app_user (id) ON DELETE SET NULL,
+    pickup_info         TEXT,
+    pickup_contact      VARCHAR(255),
     created_at          TIMESTAMPTZ DEFAULT NOW(),
     updated_at          TIMESTAMPTZ DEFAULT NOW()
 );

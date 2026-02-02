@@ -55,7 +55,7 @@ exports.getLoadById = async (id) => {
     // Fetch confirmation details if available
     if (load.status === 'USED') {
         const logSql = `
-            SELECT details->>'dealerName' as "dealerName", created_at as "timestamp"
+            SELECT details->>'confirmedBy' as "confirmedBy", created_at as "timestamp"
             FROM load_logs 
             WHERE load_id = $1 AND action = 'RELEASE_CONFIRMED'
             ORDER BY created_at DESC
@@ -86,7 +86,7 @@ exports.getLoadByToken = async (token) => {
 
 exports.createLoad = async ({ payload, currentUser }) => {
     const {
-        dealerName,
+        pickupLocation,
         vehicleYear,
         vehicleMake,
         vehicleModel,
@@ -98,29 +98,34 @@ exports.createLoad = async ({ payload, currentUser }) => {
         truckPlate,
         trailerPlate,
         pickupWindowStart,
-        pickupWindowEnd
+        pickupWindowEnd,
+        pickupInfo,
+        pickupContact,
+        loadId: customLoadId
     } = payload;
 
-    const loadId = await generateLoadId();
+    const loadId = customLoadId || await generateLoadId();
     const pin = generatePIN();
     const token = uuidv4();
 
     const sql = `
         INSERT INTO loads (
-            load_id, dealer_name, vehicle_year, vehicle_make, vehicle_model, 
+            load_id, pickup_location, vehicle_year, vehicle_make, vehicle_model, 
             vin_last_6, carrier_name, driver_name, driver_license_info, 
             driver_photo, truck_plate, trailer_plate, pickup_window_start, 
-            pickup_window_end, pin, verification_token, status, created_by
+            pickup_window_end, pin, verification_token, status, created_by,
+            pickup_info, pickup_contact
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'DRAFT', $17)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'DRAFT', $17, $18, $19)
         RETURNING *
     `;
 
     const values = [
-        loadId, dealerName, vehicleYear, vehicleMake, vehicleModel,
+        loadId, pickupLocation, vehicleYear, vehicleMake, vehicleModel,
         vinLast6, carrierName, driverName, driverLicenseInfo,
         driverPhoto, truckPlate, trailerPlate, pickupWindowStart,
-        pickupWindowEnd, pin, token, currentUser?.id
+        pickupWindowEnd, pin, token, currentUser?.id,
+        pickupInfo, pickupContact
     ];
 
     const result = await query(sql, values);
@@ -132,7 +137,7 @@ exports.createLoad = async ({ payload, currentUser }) => {
 
 exports.updateLoad = async (id, payload) => {
     const {
-        dealerName,
+        pickupLocation,
         vehicleYear,
         vehicleMake,
         vehicleModel,
@@ -143,13 +148,16 @@ exports.updateLoad = async (id, payload) => {
         truckPlate,
         trailerPlate,
         pickupWindowStart,
-        pickupWindowEnd
+        pickupWindowEnd,
+        pickupInfo,
+        pickupContact,
+        loadId
     } = payload;
 
     const sql = `
         UPDATE loads 
         SET 
-            dealer_name = $1, 
+            pickup_location = $1, 
             vehicle_year = $2, 
             vehicle_make = $3, 
             vehicle_model = $4, 
@@ -161,16 +169,19 @@ exports.updateLoad = async (id, payload) => {
             trailer_plate = $10, 
             pickup_window_start = $11, 
             pickup_window_end = $12,
+            pickup_info = $13,
+            pickup_contact = $14,
+            load_id = $15,
             updated_at = NOW()
-        WHERE id = $13
+        WHERE id = $16
         RETURNING *
     `;
 
     const values = [
-        dealerName, vehicleYear, vehicleMake, vehicleModel,
+        pickupLocation, vehicleYear, vehicleMake, vehicleModel,
         vinLast6, carrierName, driverName, driverLicenseInfo,
         truckPlate, trailerPlate, pickupWindowStart,
-        pickupWindowEnd, id
+        pickupWindowEnd, pickupInfo, pickupContact, loadId, id
     ];
 
     const result = await query(sql, values);
@@ -192,7 +203,7 @@ exports.updateStatus = async (id, status, currentUser) => {
     return result.rows[0];
 };
 
-exports.confirmRelease = async ({ token, pin, dealerName }) => {
+exports.confirmRelease = async ({ token, pin, confirmedBy }) => {
     const load = await exports.getLoadByToken(token);
 
     if (load.status === "USED") {
@@ -227,7 +238,7 @@ exports.confirmRelease = async ({ token, pin, dealerName }) => {
     await logAction({
         loadId: load.id,
         action: "RELEASE_CONFIRMED",
-        details: { dealerName, timestamp: now },
+        details: { confirmedBy, timestamp: now },
         userId: null // Public action
     });
 
@@ -241,7 +252,8 @@ exports.confirmRelease = async ({ token, pin, dealerName }) => {
             dispatcherName: load.dispatcherName || 'Dispatcher',
             loadId: load.loadId,
             vehicleInfo,
-            dealerName,
+            pickupLocation: load.pickupLocation,
+            confirmedBy,
             timestamp: now.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
         }).catch(err => console.error("Failed to send release notification:", err));
     }
@@ -288,7 +300,8 @@ exports.getReleaseLogs = async () => {
             ll.id,
             l.load_id as "loadId",
             l.id as "loadRawId",
-            ll.details->>'dealerName' as "dealerName",
+            l.pickup_location as "pickupLocation",
+            ll.details->>'confirmedBy' as "confirmedBy",
             ll.created_at as "timestamp"
         FROM load_logs ll
         JOIN loads l ON ll.load_id = l.id

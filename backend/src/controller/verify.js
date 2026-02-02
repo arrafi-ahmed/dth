@@ -14,7 +14,7 @@ router.get("/:token", async (req, res, next) => {
         // Sanitize response - only send what's needed for the Dealer Verification Page
         const dealerView = {
             loadId: load.loadId,
-            dealerName: load.dealerName,
+            pickupLocation: load.pickupLocation,
             vehicle: {
                 year: load.vehicleYear,
                 make: load.vehicleMake,
@@ -36,7 +36,9 @@ router.get("/:token", async (req, res, next) => {
                 start: load.pickupWindowStart,
                 end: load.pickupWindowEnd
             },
-            pin: load.pin // Per requirement: "Pickup PIN (displayed on screen)"
+            pin: load.pin, // Per requirement: "Pickup PIN (displayed on screen)"
+            pickupInfo: load.pickupInfo,
+            pickupContact: load.pickupContact
         };
 
         res.status(200).json(new ApiResponse({
@@ -54,11 +56,11 @@ router.get("/:token", async (req, res, next) => {
  */
 router.post("/:token/confirm", async (req, res, next) => {
     try {
-        const { pin, dealerName } = req.body;
+        const { pin, confirmedBy } = req.body;
         const updatedLoad = await loadService.confirmRelease({
             token: req.params.token,
             pin,
-            dealerName
+            confirmedBy
         });
 
         res.status(200).json(new ApiResponse({

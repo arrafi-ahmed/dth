@@ -131,6 +131,31 @@
             </div>
         </div>
         <div class="highlight">
+            <div class="section-title">Pickup Location</div>
+            <div class="item">
+                <span class="label">LOCATION NAME</span>
+                <span class="value">{{pickupLocation}}</span>
+            </div>
+            {{#if pickupContact}}
+            <div class="item">
+                <span class="label">CONTACT</span>
+                <span class="value">{{pickupContact}}</span>
+            </div>
+            {{/if}}
+        </div>
+    </div>
+
+    {{#if pickupInfo}}
+    <div class="grid" style="margin-bottom: 30px;">
+        <div class="highlight" style="grid-column: span 2;">
+            <div class="section-title">Pickup Instructions</div>
+            <div class="value" style="font-size: 14px; white-space: pre-wrap;">{{pickupInfo}}</div>
+        </div>
+    </div>
+    {{/if}}
+
+    <div class="grid">
+        <div class="highlight">
             <div class="section-title">Logistics Partner</div>
             <div class="item">
                 <span class="label">CARRIER</span>

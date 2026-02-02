@@ -283,10 +283,18 @@
                 <v-divider class="my-6" />
 
                 <v-row>
-                  <!-- Dealership Section -->
+                  <!-- Pickup Location Section -->
                   <v-col cols="12" md="6">
-                    <div class="text-subtitle-1 font-weight-bold mb-4">Dealership</div>
-                    <div class="text-body-1">{{ load.dealerName }}</div>
+                    <div class="text-subtitle-1 font-weight-bold mb-4">Pickup Location</div>
+                    <div class="text-body-1 font-weight-bold">{{ load.pickupLocation }}</div>
+                    <div v-if="load.pickupContact" class="mt-4">
+                      <span class="text-caption text-grey">Pickup Contact</span>
+                      <div class="text-body-2">{{ load.pickupContact }}</div>
+                    </div>
+                    <div v-if="load.pickupInfo" class="mt-4">
+                      <span class="text-caption text-grey">Pickup Instructions</span>
+                      <div class="text-body-2 bg-grey-lighten-4 pa-2 rounded mt-1">{{ load.pickupInfo }}</div>
+                    </div>
                   </v-col>
 
                   <!-- Pickup Window -->
@@ -331,8 +339,8 @@
                 </div>
                 
                 <div class="detail-item mb-4">
-                  <span class="text-caption text-grey">Confirming Dealer</span>
-                  <div class="text-h6 font-weight-bold">{{ load.confirmation.dealerName }}</div>
+                  <span class="text-caption text-grey">Confirming Person</span>
+                  <div class="text-h6 font-weight-bold">{{ load.confirmation.confirmedBy }}</div>
                 </div>
                 
                 <div class="detail-item">

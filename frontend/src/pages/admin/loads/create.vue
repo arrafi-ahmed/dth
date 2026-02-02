@@ -22,7 +22,7 @@
   // State
   const isSaving = ref(false)
   const form = ref({
-    dealerName: '',
+    pickupLocation: '',
     vehicleYear: new Date().getFullYear(),
     vehicleMake: '',
     vehicleModel: '',
@@ -32,6 +32,9 @@
     driverLicenseInfo: '',
     truckPlate: '',
     trailerPlate: '',
+    loadId: '', // Optional Load ID / Order Number
+    pickupInfo: '',
+    pickupContact: '',
   })
   
   const dateStart = ref(new Date())
@@ -91,16 +94,44 @@
         <v-form ref="formRef" v-model="valid" @submit.prevent="submitForm">
           <v-card elevation="2">
             <v-card-text class="pa-6">
-              <!-- Dealer Info -->
-              <div class="text-subtitle-1 font-weight-bold mb-4">Dealership Information</div>
+              <!-- Pickup Info -->
+              <div class="text-subtitle-1 font-weight-bold mb-4">Pickup Information</div>
               <v-text-field
-                v-model="form.dealerName"
-                label="Dealer Name"
-                placeholder="e.g. Northwood Toyota"
+                v-model="form.pickupLocation"
+                label="Pickup Location"
+                placeholder="e.g. Warehouse 1 or Dealership Name"
                 required
                 :rules="[rules.required]"
                 variant="outlined"
               />
+              <v-text-field
+                v-model="form.loadId"
+                label="Load ID / Order Number (Optional)"
+                placeholder="e.g. L-123456"
+                variant="outlined"
+                hint="Leave blank to auto-generate"
+                persistent-hint
+              />
+              <v-row class="mt-2">
+                <v-col cols="12" md="6">
+                  <v-text-field
+                    v-model="form.pickupContact"
+                    label="Pickup Contact"
+                    placeholder="Name and/or Phone"
+                    variant="outlined"
+                  />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-textarea
+                    v-model="form.pickupInfo"
+                    label="Pickup Instructions / Notes"
+                    placeholder="Any specific details for pickup"
+                    rows="1"
+                    variant="outlined"
+                    auto-grow
+                  />
+                </v-col>
+              </v-row>
 
               <v-divider class="my-6" />
 
