@@ -22,7 +22,9 @@ exports.generateVehicleReleasePdf = async (load, timezone = 'UTC') => {
     ]);
 
     // Generate QR Code
-    const verificationUrl = `${process.env.VUE_BASE_URL}/verify/${load.verification_token}`;
+    // Ensure verificationToken is accessed correctly (camelCase from db wrapper)
+    const token = load.verificationToken || load.verification_token;
+    const verificationUrl = `${process.env.VUE_BASE_URL}/verify/${token}`;
     const qrDataUrl = await qrcode.toDataURL(verificationUrl, {
         margin: 1,
         width: pdfSettings.qrCodeSize || 120,
