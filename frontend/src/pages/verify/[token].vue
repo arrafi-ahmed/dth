@@ -24,6 +24,7 @@
   const error = ref(null)
   const success = ref(false)
   const enteredPin = ref('')
+  const verifierName = ref('')
 
   async function fetchLoadDetails () {
     try {
@@ -44,7 +45,7 @@
       isConfirming.value = true
       await $axios.post(`/verify/${token}/confirm`, {
         pin: enteredPin.value,
-        confirmedBy: load.value.pickupLocation,
+        confirmedBy: verifierName.value,
       })
       success.value = true
     } catch (err) {
@@ -212,6 +213,17 @@
                   </div>
                 </div>
 
+                <!-- Verifier Name -->
+                <v-text-field
+                  v-model="verifierName"
+                  label="Verified By (Your Name)"
+                  placeholder="Enter your full name"
+                  variant="outlined"
+                  bg-color="white"
+                  class="mb-4"
+                  hide-details
+                />
+
                 <!-- PIN Entry -->
                 <v-text-field
                   v-model="enteredPin"
@@ -228,7 +240,7 @@
                   block
                   class="mt-6"
                   color="success"
-                  :disabled="enteredPin.length < 6"
+                  :disabled="enteredPin.length < 6 || !verifierName"
                   :loading="isConfirming"
                   size="x-large"
                   variant="flat"

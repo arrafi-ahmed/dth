@@ -2,6 +2,8 @@ const { query } = require("../db");
 const CustomError = require("../model/CustomError");
 const { v4: uuidv4 } = require("uuid");
 const crypto = require("crypto");
+const emailService = require("./email");
+const pdfService = require("./pdf");
 
 /**
  * Generate a random numeric PIN of specified length
@@ -101,7 +103,8 @@ exports.createLoad = async ({ payload, currentUser }) => {
         pickupWindowEnd,
         pickupInfo,
         pickupContact,
-        loadId: customLoadId
+        loadId: customLoadId,
+        customFields
     } = payload;
 
     const loadId = customLoadId || await generateLoadId();
@@ -114,9 +117,9 @@ exports.createLoad = async ({ payload, currentUser }) => {
             vin_last_6, carrier_name, driver_name, driver_license_info, 
             driver_photo, truck_plate, trailer_plate, pickup_window_start, 
             pickup_window_end, pin, verification_token, status, created_by,
-            pickup_info, pickup_contact
+            pickup_info, pickup_contact, custom_fields
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'DRAFT', $17, $18, $19)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'DRAFT', $17, $18, $19, $20)
         RETURNING *
     `;
 
@@ -125,7 +128,7 @@ exports.createLoad = async ({ payload, currentUser }) => {
         vinLast6, carrierName, driverName, driverLicenseInfo,
         driverPhoto, truckPlate, trailerPlate, pickupWindowStart,
         pickupWindowEnd, pin, token, currentUser?.id,
-        pickupInfo, pickupContact
+        pickupInfo, pickupContact, JSON.stringify(customFields || {})
     ];
 
     const result = await query(sql, values);
@@ -151,7 +154,8 @@ exports.updateLoad = async (id, payload) => {
         pickupWindowEnd,
         pickupInfo,
         pickupContact,
-        loadId
+        loadId,
+        customFields
     } = payload;
 
     const sql = `
@@ -172,8 +176,9 @@ exports.updateLoad = async (id, payload) => {
             pickup_info = $13,
             pickup_contact = $14,
             load_id = $15,
+            custom_fields = $16,
             updated_at = NOW()
-        WHERE id = $16
+        WHERE id = $17
         RETURNING *
     `;
 
@@ -181,7 +186,9 @@ exports.updateLoad = async (id, payload) => {
         pickupLocation, vehicleYear, vehicleMake, vehicleModel,
         vinLast6, carrierName, driverName, driverLicenseInfo,
         truckPlate, trailerPlate, pickupWindowStart,
-        pickupWindowEnd, pickupInfo, pickupContact, loadId, id
+        pickupWindowEnd, pickupInfo, pickupContact, loadId,
+        JSON.stringify(customFields || {}),
+        id
     ];
 
     const result = await query(sql, values);
@@ -244,17 +251,28 @@ exports.confirmRelease = async ({ token, pin, confirmedBy }) => {
 
     // Send email notification to dispatcher
     if (load.dispatcherEmail) {
-        const { sendReleaseNotification } = require("./email");
         const vehicleInfo = `${load.vehicleYear || ''} ${load.vehicleMake || ''} ${load.vehicleModel || ''}`.trim() || load.vinLast6 || 'Vehicle';
 
-        sendReleaseNotification({
+        // Generate PDF for attachment
+        let attachments = [];
+        try {
+            const pdfBuffer = await pdfService.generateVehicleReleasePdf(updatedLoad);
+            attachments.push({
+                filename: `DTH_Release_${load.loadId}.pdf`,
+                content: pdfBuffer
+            });
+        } catch (pdfErr) {
+            console.error("Failed to generate PDF for release attachment:", pdfErr);
+        }
+
+        emailService.sendReleaseNotification({
             to: load.dispatcherEmail,
             dispatcherName: load.dispatcherName || 'Dispatcher',
             loadId: load.loadId,
             vehicleInfo,
-            pickupLocation: load.pickupLocation,
             confirmedBy,
-            timestamp: now.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+            timestamp: now.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+            attachments
         }).catch(err => console.error("Failed to send release notification:", err));
     }
 
@@ -269,7 +287,22 @@ exports.validateLoad = async (id, currentUser) => {
     }
 
     // No logging here as per user request (only successful release)
-    return result.rows[0];
+    const validatedLoad = result.rows[0];
+
+    // Automatically email PDF to generic dispatch
+    const vehicleInfo = `${validatedLoad.vehicle_year || ''} ${validatedLoad.vehicle_make || ''} ${validatedLoad.vehicle_model || ''}`.trim() || validatedLoad.vin_last_6 || 'Vehicle';
+
+    pdfService.generateVehicleReleasePdf(validatedLoad)
+        .then(pdfBuffer => {
+            return emailService.sendLoadValidationNotification({
+                loadId: validatedLoad.load_id,
+                vehicleInfo,
+                pdfBuffer
+            });
+        })
+        .catch(err => console.error("Failed to send validation email:", err));
+
+    return validatedLoad;
 };
 
 exports.voidLoad = async (id, currentUser) => {

@@ -8,6 +8,7 @@ const { getBrandingData } = require("../utils/branding");
 const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, VUE_BASE_URL } = process.env;
 const SENDER_EMAIL = process.env.SENDER_EMAIL || process.env.SMTP_USER || "dispatch@DTHLogistics.com";
 const SENDER_NAME = process.env.SENDER_NAME || process.env.EMAIL_SENDER || "DTH Logistics";
+const DISPATCH_EMAIL = process.env.DISPATCH_EMAIL || "dispatch@dealertradehouston.com";
 
 // Only create transporter if SMTP credentials are provided
 let transporter = null;
@@ -96,7 +97,43 @@ const loadReleasedTemplatePath = path.join(
 const loadReleasedTemplateSource = fs.readFileSync(loadReleasedTemplatePath, "utf8");
 const compileLoadReleasedTemplate = handlebars.compile(loadReleasedTemplateSource);
 
-exports.sendReleaseNotification = async ({ to, dispatcherName, loadId, vehicleInfo, dealerName, timestamp }) => {
+exports.DISPATCH_EMAIL = DISPATCH_EMAIL;
+
+exports.sendLoadValidationNotification = async ({ loadId, vehicleInfo, pdfBuffer }) => {
+    try {
+        const header = await getBrandingData();
+        const html = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto;">
+                <h1>Load Validated & Ready for Release</h1>
+                <p>A new load has been validated and the Vehicle Release authorization has been generated.</p>
+                <div style="background: #f4f4f4; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p><strong>Load ID:</strong> ${loadId}</p>
+                    <p><strong>Vehicle:</strong> ${vehicleInfo}</p>
+                </div>
+                <p>The authorization PDF is attached to this email.</p>
+                <hr>
+                <p style="color: #666; font-size: 12px;">DTH Logistics Portal</p>
+            </div>
+        `;
+
+        await exports.sendMail({
+            to: DISPATCH_EMAIL,
+            subject: `Load Validated: ${loadId} - ${appInfo.name}`,
+            html,
+            attachments: [{
+                filename: `DTH_Release_${loadId}.pdf`,
+                content: pdfBuffer
+            }]
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error sending validation email:", error);
+        return { success: false, error: error.message };
+    }
+};
+
+exports.sendReleaseNotification = async ({ to, dispatcherName, loadId, vehicleInfo, confirmedBy, timestamp, attachments = [] }) => {
     try {
         const header = await getBrandingData();
         const html = compileLoadReleasedTemplate({
@@ -104,7 +141,7 @@ exports.sendReleaseNotification = async ({ to, dispatcherName, loadId, vehicleIn
             dispatcherName,
             loadId,
             vehicleInfo,
-            dealerName,
+            dealerName: confirmedBy, // Using dealerName field for the verifier name for now
             timestamp,
             currentYear: new Date().getFullYear(),
         });
@@ -113,6 +150,7 @@ exports.sendReleaseNotification = async ({ to, dispatcherName, loadId, vehicleIn
             to,
             subject: `Vehicle Released: ${loadId} - ${appInfo.name}`,
             html,
+            attachments
         });
 
         return {

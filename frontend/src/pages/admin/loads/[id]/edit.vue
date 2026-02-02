@@ -1,5 +1,5 @@
 <script setup>
-  import { onMounted, ref } from 'vue'
+  import { onMounted, ref, computed } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useStore } from 'vuex'
   import PageTitle from '@/components/PageTitle.vue'
@@ -26,6 +26,8 @@
   // State
   const isLoading = ref(true)
   const isSaving = ref(false)
+  const formConfig = ref([])
+  
   const form = ref({
     pickupLocation: '',
     vehicleYear: new Date().getFullYear(),
@@ -40,6 +42,7 @@
     loadId: '',
     pickupInfo: '',
     pickupContact: '',
+    customFields: {},
   })
   
   const dateStart = ref(new Date())
@@ -55,13 +58,44 @@
     vin: v => (v && v.length === 6) || 'Must be exactly 6 characters',
   }
 
+  // Computed fields sorted by order
+  const visibleFields = computed(() => {
+    return formConfig.value
+      .filter(f => f.isVisible && !['pickupWindowStart', 'pickupWindowEnd'].includes(f.fieldKey))
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+  })
+
+  // Helper to get rule for field
+  const getRules = (field) => {
+    const fieldRules = []
+    if (field.isRequired) fieldRules.push(rules.required)
+    if (field.fieldKey === 'vinLast6') fieldRules.push(rules.vin)
+    return fieldRules
+  }
+
   async function fetchLoad () {
     try {
       isLoading.value = true
+      
+      // Fetch form config first
+      await store.dispatch('settings/fetchFormConfig')
+      formConfig.value = store.state.settings.formConfig
+
       const response = await $axios.get(`/loads/${id}`)
       const load = response.data?.payload
       
       if (load) {
+        // Initialize custom fields from config
+        const customFieldsInit = {}
+        formConfig.value.forEach(field => {
+            if (field.type === 'CUSTOM') {
+                customFieldsInit[field.fieldKey] = ''
+            }
+        })
+
+        // Merge loaded custom fields
+        const loadedCustomFields = load.custom_fields || {} // backend usually returns snake_case custom_fields or camel? likely snake via API logic, but object keys are preserved.
+        
         form.value = {
           pickupLocation: load.pickupLocation || load.dealerName,
           vehicleYear: load.vehicleYear,
@@ -76,6 +110,7 @@
           loadId: load.loadId,
           pickupInfo: load.pickupInfo,
           pickupContact: load.pickupContact,
+          customFields: { ...customFieldsInit, ...loadedCustomFields },
         }
 
         const split = (isoString) => {
@@ -153,129 +188,61 @@
         <v-form v-else ref="formRef" v-model="valid" @submit.prevent="submitForm">
           <v-card elevation="2">
             <v-card-text class="pa-6">
-              <!-- Pickup Info -->
-              <div class="text-subtitle-1 font-weight-bold mb-4">Pickup Information</div>
-              <v-text-field
-                v-model="form.pickupLocation"
-                label="Pickup Location"
-                placeholder="e.g. Warehouse 1 or Dealership Name"
-                required
-                :rules="[rules.required]"
-                variant="outlined"
-              />
-              <v-text-field
-                v-model="form.loadId"
-                label="Load ID / Order Number"
-                placeholder="e.g. L-123456"
-                variant="outlined"
-                required
-                :rules="[rules.required]"
-              />
-              <v-row class="mt-2">
-                <v-col cols="12" md="6">
-                  <v-text-field
-                    v-model="form.pickupContact"
-                    label="Pickup Contact"
-                    placeholder="Name and/or Phone"
-                    variant="outlined"
-                  />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-textarea
-                    v-model="form.pickupInfo"
-                    label="Pickup Instructions / Notes"
-                    placeholder="Any specific details for pickup"
-                    rows="1"
-                    variant="outlined"
-                    auto-grow
-                  />
-                </v-col>
-              </v-row>
-
-              <v-divider class="my-6" />
-
-              <!-- Vehicle Info -->
-              <div class="text-subtitle-1 font-weight-bold mb-4">Vehicle Details</div>
               <v-row>
-                <v-col cols="12" md="4">
-                  <v-text-field
-                    v-model="form.vehicleYear"
-                    label="Year"
-                    type="number"
-                    variant="outlined"
-                  />
-                </v-col>
-                <v-col cols="12" md="4">
-                  <v-text-field
-                    v-model="form.vehicleMake"
-                    label="Make"
-                    placeholder="e.g. Toyota"
-                    variant="outlined"
-                  />
-                </v-col>
-                <v-col cols="12" md="4">
-                  <v-text-field
-                    v-model="form.vehicleModel"
-                    label="Model"
-                    placeholder="e.g. Camry"
-                    variant="outlined"
-                  />
-                </v-col>
-                <v-col cols="12">
-                  <v-text-field
-                    v-model="form.vinLast6"
-                    label="VIN (Last 6 Digits)"
-                    maxlength="6"
-                    placeholder="XXXXXX"
-                    required
-                    :rules="[rules.required, rules.vin]"
-                    variant="outlined"
-                  />
-                </v-col>
-              </v-row>
+                <template v-for="field in visibleFields" :key="field.id">
+                  <v-col 
+                    :cols="12" 
+                    :md="field.inputType === 'TEXTAREA' ? 12 : 6"
+                  >
+                    <template v-if="field.type === 'CORE'">
+                      <v-text-field
+                        v-if="field.inputType === 'TEXT' || field.inputType === 'NUMBER'"
+                        v-model="form[field.fieldKey]"
+                        :label="field.label"
+                        :required="field.isRequired"
+                        :rules="getRules(field)"
+                        variant="outlined"
+                        :density="density"
+                        :type="field.inputType === 'NUMBER' ? 'number' : 'text'"
+                      />
+                      <v-textarea
+                        v-else-if="field.inputType === 'TEXTAREA'"
+                        v-model="form[field.fieldKey]"
+                        :label="field.label"
+                        :required="field.isRequired"
+                        :rules="getRules(field)"
+                        variant="outlined"
+                        :density="density"
+                        auto-grow
+                        rows="2"
+                      />
+                    </template>
 
-              <v-divider class="my-6" />
-
-              <!-- Carrier Info -->
-              <div class="text-subtitle-1 font-weight-bold mb-4">Logistics & Driver</div>
-              <v-row>
-                <v-col cols="12" md="6">
-                  <v-text-field
-                    v-model="form.carrierName"
-                    label="Carrier Name"
-                    placeholder="e.g. Fast Logix"
-                    variant="outlined"
-                  />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-text-field
-                    v-model="form.driverName"
-                    label="Driver Name"
-                    variant="outlined"
-                  />
-                </v-col>
-                <v-col cols="12">
-                  <v-textarea
-                    v-model="form.driverLicenseInfo"
-                    label="Driver License Info"
-                    rows="2"
-                    variant="outlined"
-                  />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-text-field
-                    v-model="form.truckPlate"
-                    label="Truck Plate"
-                    variant="outlined"
-                  />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-text-field
-                    v-model="form.trailerPlate"
-                    label="Trailer Plate"
-                    variant="outlined"
-                  />
-                </v-col>
+                    <template v-else>
+                      <v-text-field
+                        v-if="field.inputType === 'TEXT' || field.inputType === 'NUMBER'"
+                        v-model="form.customFields[field.fieldKey]"
+                        :label="field.label"
+                        :required="field.isRequired"
+                        :rules="getRules(field)"
+                        variant="outlined"
+                        :density="density"
+                        :type="field.inputType === 'NUMBER' ? 'number' : 'text'"
+                      />
+                      <v-textarea
+                        v-else-if="field.inputType === 'TEXTAREA'"
+                        v-model="form.customFields[field.fieldKey]"
+                        :label="field.label"
+                        :required="field.isRequired"
+                        :rules="getRules(field)"
+                        variant="outlined"
+                        :density="density"
+                        auto-grow
+                        rows="2"
+                      />
+                    </template>
+                  </v-col>
+                </template>
               </v-row>
 
               <v-divider class="my-6" />

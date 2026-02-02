@@ -130,17 +130,144 @@ class SettingsService {
 
     // --- Layout Data ---
     async getAllLayoutData() {
-        const [appearance, header, footer] = await Promise.all([
+        const [appearance, header, footer, formConfig, pdfSettings] = await Promise.all([
             this.getAppearanceSettings(),
             this.getHeaderSettings(),
-            this.getFooterSettings()
+            this.getFooterSettings(),
+            this.getFormFieldConfigs(),
+            this.getPdfSettings()
         ]);
 
         return {
             appearance,
             header,
-            footer
+            footer,
+            formConfig,
+            pdfSettings
         };
+    }
+
+    // --- Form Field Configuration ---
+    async getFormFieldConfigs() {
+        const result = await query(`
+            SELECT id, type, field_key as "fieldKey", input_type as "inputType", 
+                   label, is_visible as "isVisible", is_required as "isRequired", 
+                   show_on_pdf as "showOnPdf", display_order as "displayOrder"
+            FROM form_field_configs 
+            ORDER BY display_order ASC
+        `);
+        return result.rows;
+    }
+
+    async updateFormFieldConfig(id, data) {
+        const fields = [];
+        const values = [];
+        let i = 1;
+
+        const allowedFields = ['label', 'isVisible', 'isRequired', 'showOnPdf', 'displayOrder', 'inputType', 'fieldKey'];
+
+        for (const key of allowedFields) {
+            if (data[key] !== undefined) {
+                const dbKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+                fields.push(`${dbKey} = $${i++}`);
+                values.push(data[key]);
+            }
+        }
+
+        if (fields.length === 0) return null;
+
+        values.push(id);
+        const sql = `UPDATE form_field_configs SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${i} RETURNING *`;
+        const result = await query(sql, values);
+        return result.rows[0];
+    }
+
+    async batchUpdateFormFieldConfigs(configs) {
+        const results = [];
+        // Using a loop for now; could be optimized with a single transaction wrapper if needed
+        for (const config of configs) {
+            const { id, ...data } = config;
+            if (id) {
+                const updated = await this.updateFormFieldConfig(id, data);
+                if (updated) results.push(updated);
+            }
+        }
+        return results;
+    }
+
+    async createCustomField(data) {
+        const sql = `
+            INSERT INTO form_field_configs (type, field_key, input_type, label, is_visible, is_required, show_on_pdf, display_order)
+            VALUES ('CUSTOM', $1, $2, $3, $4, $5, $6, $7)
+            RETURNING *
+        `;
+        const values = [
+            data.fieldKey,
+            data.inputType || 'TEXT',
+            data.label,
+            data.isVisible !== false,
+            data.isRequired === true,
+            data.showOnPdf !== false,
+            data.displayOrder || 0
+        ];
+        const result = await query(sql, values);
+        return result.rows[0];
+    }
+
+    async deleteCustomField(id) {
+        const sql = `DELETE FROM form_field_configs WHERE id = $1 AND type = 'CUSTOM' RETURNING *`;
+        const result = await query(sql, [id]);
+        return result.rows[0];
+    }
+
+    // --- PDF Settings ---
+    async getPdfSettings() {
+        const result = await query(`
+            SELECT id, disclaimer_text as "disclaimerText", support_phone as "supportPhone", 
+                   support_email as "supportEmail", logo_height as "logoHeight", 
+                   header_title as "headerTitle", qr_code_size as "qrCodeSize",
+                   footer_text as "footerText" 
+            FROM pdf_settings 
+            LIMIT 1
+        `);
+        return result.rows[0] || {};
+    }
+
+    async updatePdfSettings(data) {
+        const current = await this.getPdfSettings();
+        if (current.id) {
+            const fields = [];
+            const values = [];
+            let i = 1;
+
+            const allowedFields = ['disclaimerText', 'supportPhone', 'supportEmail', 'logoHeight', 'footerText', 'headerTitle', 'qrCodeSize'];
+            for (const key of allowedFields) {
+                if (data[key] !== undefined) {
+                    const dbKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+                    fields.push(`${dbKey} = $${i++}`);
+                    values.push(data[key]);
+                }
+            }
+
+            if (fields.length === 0) return current;
+
+            values.push(current.id);
+            await query(`UPDATE pdf_settings SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${i}`, values);
+        } else {
+            const columns = ['disclaimer_text', 'support_phone', 'support_email', 'logo_height', 'footer_text', 'header_title', 'qr_code_size'];
+            const placeholders = ['$1', '$2', '$3', '$4', '$5', '$6', '$7'];
+            const values = [
+                data.disclaimerText || '',
+                data.supportPhone || '',
+                data.supportEmail || '',
+                data.logoHeight || 130,
+                data.footerText || '',
+                data.headerTitle || 'VEHICLE RELEASE AUTHORIZATION',
+                data.qrCodeSize || 120
+            ];
+            await query(`INSERT INTO pdf_settings (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`, values);
+        }
+        return await this.getPdfSettings();
     }
 }
 

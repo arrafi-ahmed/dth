@@ -75,6 +75,29 @@
     darkColors: {},
     darkVariables: {},
   })
+
+  // Form Field Configuration
+  const formLoading = ref(false)
+  const formSaving = ref(false)
+  const formConfig = ref([])
+  const customFieldDialog = ref(false)
+  const newCustomField = ref({
+    fieldKey: '',
+    label: '',
+    inputType: 'TEXT',
+    isRequired: false,
+    showOnPdf: true,
+  })
+
+  // PDF Settings
+  const pdfLoading = ref(false)
+  const pdfSettings = ref({
+    disclaimerText: '',
+    supportPhone: '',
+    supportEmail: '',
+    logoHeight: 130,
+    footerText: '',
+  })
   const selectedThemeTab = ref('light') // For switching between light/dark color editing
   const selectedModeTab = ref('colors') // For switching between colors/advanced
   const advancedJson = ref({
@@ -411,6 +434,99 @@
     }
   }
 
+
+  // Form Config Functions
+  async function fetchFormConfig() {
+    try {
+      formLoading.value = true
+      await store.dispatch('settings/fetchFormConfig')
+      formConfig.value = JSON.parse(JSON.stringify(store.state.settings.formConfig))
+    } catch (error) {
+      console.error('Error fetching form config:', error)
+    } finally {
+      formLoading.value = false
+    }
+  }
+
+  async function saveFormConfig() {
+    try {
+      formSaving.value = true
+      const configs = formConfig.value.map(field => ({
+        id: field.id,
+        label: field.label,
+        isVisible: field.isVisible,
+        showOnPdf: field.showOnPdf,
+        displayOrder: field.displayOrder,
+      }))
+      await store.dispatch('settings/updateAllFormFields', configs)
+    } catch (error) {
+      console.error('Error saving form config:', error)
+    } finally {
+      formSaving.value = false
+    }
+  }
+
+  function openCustomFieldDialog() {
+    newCustomField.value = {
+      fieldKey: '',
+      label: '',
+      inputType: 'TEXT',
+      isRequired: false,
+      showOnPdf: true,
+      displayOrder: (formConfig.value.length * 10) + 10
+    }
+    customFieldDialog.value = true
+  }
+
+  async function addCustomField() {
+    if (!newCustomField.value.fieldKey || !newCustomField.value.label) return
+    try {
+      formLoading.value = true
+      await store.dispatch('settings/createCustomField', newCustomField.value)
+      customFieldDialog.value = false
+      await fetchFormConfig()
+    } catch (error) {
+      console.error('Error adding custom field:', error)
+    } finally {
+      formLoading.value = false
+    }
+  }
+
+  async function deleteField(id) {
+    try {
+      formLoading.value = true
+      await store.dispatch('settings/deleteCustomField', id)
+      await fetchFormConfig()
+    } catch (error) {
+      console.error('Error deleting field:', error)
+    } finally {
+      formLoading.value = false
+    }
+  }
+
+  // PDF Settings Functions
+  async function fetchPdfSettings() {
+    try {
+      pdfLoading.value = true
+      await store.dispatch('settings/fetchPdfSettings')
+      pdfSettings.value = { ...store.state.settings.pdfSettings }
+    } catch (error) {
+      console.error('Error fetching PDF settings:', error)
+    } finally {
+      pdfLoading.value = false
+    }
+  }
+
+  async function savePdfSettings() {
+    try {
+      pdfLoading.value = true
+      await store.dispatch('settings/updatePdfSettings', pdfSettings.value)
+    } catch (error) {
+      console.error('Error saving PDF settings:', error)
+    } finally {
+      pdfLoading.value = false
+    }
+  }
   async function saveAppearanceSettings () {
     try {
       appearanceLoading.value = true
@@ -536,10 +652,11 @@
   ]
 
   onMounted(() => {
-    fetchBanners()
     fetchFooterSettings()
     fetchHeaderSettings()
     fetchAppearanceSettings()
+    fetchFormConfig()
+    fetchPdfSettings()
   })
 </script>
 
@@ -594,7 +711,7 @@
                 <v-btn
                   color="primary"
                   prepend-icon="mdi-plus"
-                          :size="size"
+                         :size="size"
                   @click="openCreateDialog"
                 >
                   Add Banner
@@ -609,7 +726,7 @@
                   <v-btn
                     color="primary"
                     prepend-icon="mdi-plus"
-                              :size="size"
+                             :size="size"
                     @click="openCreateDialog"
                   >
                     Add Banner
@@ -627,68 +744,68 @@
                     <v-card
                       class="banner-card rounded-xl"
                       elevation="2"
-                                >
+                               >
                       <v-img
-                        cover
-                        height="200"
-                        :src="getBannerImageUrl(banner.imageUrl)"
+                       cover
+                       height="200"
+                       :src="getBannerImageUrl(banner.imageUrl)"
                       >
-                        <div class="banner-overlay">
-                          <v-chip
-                            :color="isBannerActive(banner) ? 'success' : 'grey'"
-                            size="small"
-                            variant="flat"
-                          >
-                            {{ isBannerActive(banner) ? 'Active' : 'Inactive' }}
-                          </v-chip>
-                        </div>
+                       <div class="banner-overlay">
+                         <v-chip
+                           :color="isBannerActive(banner) ? 'success' : 'grey'"
+                           size="small"
+                           variant="flat"
+                         >
+                           {{ isBannerActive(banner) ? 'Active' : 'Inactive' }}
+                         </v-chip>
+                       </div>
                       </v-img>
 
                       <v-card-text class="pa-4">
-                        <div class="d-flex align-center justify-space-between">
-                          <div class="text-h6">
-                            Banner #{{ index + 1 }}
-                          </div>
-                          <v-switch
-                            color="success"
-                            :density="density"
-                            hide-details
-                            :model-value="banner.isActive"
-                            @update:model-value="toggleActive(banner)"
-                          />
-                        </div>
+                       <div class="d-flex align-center justify-space-between">
+                         <div class="text-h6">
+                           Banner #{{ index + 1 }}
+                         </div>
+                         <v-switch
+                           color="success"
+                           :density="density"
+                           hide-details
+                           :model-value="banner.isActive"
+                           @update:model-value="toggleActive(banner)"
+                         />
+                       </div>
                       </v-card-text>
 
                       <v-card-actions class="px-4 pb-4">
-                        <v-btn
-                          color="primary"
-                          :density="density"
-                          prepend-icon="mdi-pencil"
-                          :size="size"
-                          variant="text"
-                          @click="openEditDialog(banner)"
-                        >
-                          Edit
-                        </v-btn>
-                        <v-spacer />
-                        <confirmation-dialog
-                          :popup-content="`Are you sure you want to delete Banner #${index + 1}? This action cannot be undone.`"
-                          popup-title="Delete Banner"
-                          @confirm="deleteBanner"
-                        >
-                          <template #activator="{ onClick }">
-                            <v-btn
-                              color="error"
-                              :density="density"
-                              prepend-icon="mdi-delete"
-                                  :size="size"
-                              variant="text"
-                              @click="confirmDelete(banner); onClick()"
-                            >
-                              Delete
-                            </v-btn>
-                          </template>
-                        </confirmation-dialog>
+                       <v-btn
+                         color="primary"
+                         :density="density"
+                         prepend-icon="mdi-pencil"
+                         :size="size"
+                         variant="text"
+                         @click="openEditDialog(banner)"
+                       >
+                         Edit
+                       </v-btn>
+                       <v-spacer />
+                       <confirmation-dialog
+                         :popup-content="`Are you sure you want to delete Banner #${index + 1}? This action cannot be undone.`"
+                         popup-title="Delete Banner"
+                         @confirm="deleteBanner"
+                       >
+                         <template #activator="{ onClick }">
+                           <v-btn
+                             color="error"
+                             :density="density"
+                             prepend-icon="mdi-delete"
+                                 :size="size"
+                             variant="text"
+                             @click="confirmDelete(banner); onClick()"
+                           >
+                             Delete
+                           </v-btn>
+                         </template>
+                       </confirmation-dialog>
                       </v-card-actions>
                     </v-card>
                   </v-col>
@@ -713,7 +830,7 @@
                 <!-- Logo Upload -->
                 <v-card
                   class="mb-4"
-                          variant="outlined"
+                         variant="outlined"
                 >
                   <v-card-title class="text-subtitle-1">
                     Logos
@@ -721,54 +838,54 @@
                   <v-card-text>
                     <v-row>
                       <v-col cols="12" md="6">
-                        <div class="text-caption mb-1">Light Theme Logo</div>
-                        <v-file-upload
-                          v-model="logoFile"
-                          accept="image/*"
-                          clearable
-                          density="compact"
-                          hide-details="auto"
-                          show-size
-                          title="Upload Light Logo"
-                          :variant="variant"
-                          @update:model-value="handleLogoSelect"
-                        />
-                        <!-- Light Logo Preview -->
-                        <div class="mt-4">
-                          <v-img
-                            v-if="logoPreview"
-                            class="mt-2 mx-auto"
-                            contain
-                            :src="logoPreview"
-                            style="border: 1px solid rgba(0,0,0,0.12); border-radius: 4px; background-color: #f8fafc;"
-                            :width="logoWidthView === 'desktop' ? headerSettings.logoWidthLeft : headerSettings.logoWidthMobile"
-                          />
-                        </div>
+                       <div class="text-caption mb-1">Light Theme Logo</div>
+                       <v-file-upload
+                         v-model="logoFile"
+                         accept="image/*"
+                         clearable
+                         density="comfortable"
+                         hide-details="auto"
+                         show-size
+                         title="Upload Light Logo"
+                         :variant="variant"
+                         @update:model-value="handleLogoSelect"
+                       />
+                       <!-- Light Logo Preview -->
+                       <div class="mt-4">
+                         <v-img
+                           v-if="logoPreview"
+                           class="mt-2 mx-auto"
+                           contain
+                           :src="logoPreview"
+                           style="border: 1px solid rgba(0,0,0,0.12); border-radius: 4px; background-color: #f8fafc;"
+                           :width="logoWidthView === 'desktop' ? headerSettings.logoWidthLeft : headerSettings.logoWidthMobile"
+                         />
+                       </div>
                       </v-col>
                       <v-col cols="12" md="6">
-                        <div class="text-caption mb-1">Dark Theme Logo</div>
-                        <v-file-upload
-                          v-model="logoFileDark"
-                          accept="image/*"
-                          clearable
-                          density="compact"
-                          hide-details="auto"
-                          show-size
-                          title="Upload Dark Logo"
-                          :variant="variant"
-                          @update:model-value="handleLogoDarkSelect"
-                        />
-                        <!-- Dark Logo Preview -->
-                        <div class="mt-4">
-                          <v-img
-                            v-if="logoPreviewDark"
-                            class="mt-2 mx-auto"
-                            contain
-                            :src="logoPreviewDark"
-                            style="border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; background-color: #0f172a;"
-                            :width="logoWidthView === 'desktop' ? headerSettings.logoWidthLeft : headerSettings.logoWidthMobile"
-                          />
-                        </div>
+                       <div class="text-caption mb-1">Dark Theme Logo</div>
+                       <v-file-upload
+                         v-model="logoFileDark"
+                         accept="image/*"
+                         clearable
+                         density="comfortable"
+                         hide-details="auto"
+                         show-size
+                         title="Upload Dark Logo"
+                         :variant="variant"
+                         @update:model-value="handleLogoDarkSelect"
+                       />
+                       <!-- Dark Logo Preview -->
+                       <div class="mt-4">
+                         <v-img
+                           v-if="logoPreviewDark"
+                           class="mt-2 mx-auto"
+                           contain
+                           :src="logoPreviewDark"
+                           style="border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; background-color: #0f172a;"
+                           :width="logoWidthView === 'desktop' ? headerSettings.logoWidthLeft : headerSettings.logoWidthMobile"
+                         />
+                       </div>
                       </v-col>
                     </v-row>
 
@@ -776,64 +893,64 @@
                     <div class="mt-4">
                       <!-- View Selector -->
                       <v-select
-                        v-model="logoWidthView"
-                        class="mb-3"
-                        :density="density"
-                        hide-details="auto"
-                        :items="[
-                          { title: 'Desktop', value: 'desktop' },
-                          { title: 'Mobile', value: 'mobile' }
-                        ]"
-                        label="View"
-                        max-width="100"
-                                      variant="plain"
+                       v-model="logoWidthView"
+                       class="mb-3"
+                       :density="density"
+                       hide-details="auto"
+                       :items="[
+                         { title: 'Desktop', value: 'desktop' },
+                         { title: 'Mobile', value: 'mobile' }
+                       ]"
+                       label="View"
+                       max-width="100"
+                                     variant="plain"
                       />
 
                       <!-- Desktop Width Slider -->
                       <div v-if="logoWidthView === 'desktop'">
-                        <div class="d-flex justify-space-between align-center mb-2">
-                          <span class="text-body-2 font-weight-medium">Desktop Width</span>
-                          <span class="text-body-2 text-medium-emphasis">{{ headerSettings.logoWidthLeft }}px</span>
-                        </div>
-                        <v-slider
-                          v-model="headerSettings.logoWidthLeft"
-                          color="primary"
-                          hide-details="auto"
-                          :max="500"
-                          :min="50"
-                          :step="10"
-                          thumb-label
-                        />
+                       <div class="d-flex justify-space-between align-center mb-2">
+                         <span class="text-body-2 font-weight-medium">Desktop Width</span>
+                         <span class="text-body-2 text-medium-emphasis">{{ headerSettings.logoWidthLeft }}px</span>
+                       </div>
+                       <v-slider
+                         v-model="headerSettings.logoWidthLeft"
+                         color="primary"
+                         hide-details="auto"
+                         :max="500"
+                         :min="50"
+                         :step="10"
+                         thumb-label
+                       />
                       </div>
 
                       <!-- Mobile Width Slider -->
                       <div v-else>
-                        <div class="d-flex justify-space-between align-center mb-2">
-                          <span class="text-body-2 font-weight-medium">Mobile Width</span>
-                          <span class="text-body-2 text-medium-emphasis">{{ headerSettings.logoWidthMobile }}px</span>
-                        </div>
-                        <v-slider
-                          v-model="headerSettings.logoWidthMobile"
-                          color="primary"
-                          hide-details="auto"
-                          :max="300"
-                          :min="50"
-                          :step="10"
-                          thumb-label
-                        />
+                       <div class="d-flex justify-space-between align-center mb-2">
+                         <span class="text-body-2 font-weight-medium">Mobile Width</span>
+                         <span class="text-body-2 text-medium-emphasis">{{ headerSettings.logoWidthMobile }}px</span>
+                       </div>
+                       <v-slider
+                         v-model="headerSettings.logoWidthMobile"
+                         color="primary"
+                         hide-details="auto"
+                         :max="300"
+                         :min="50"
+                         :step="10"
+                         thumb-label
+                       />
                       </div>
                     </div>
 
                     <div v-if="!logoPreview && !logoPreviewDark && !logoFile && !logoFileDark" class="mt-2 text-center pa-4 bg-grey-lighten-4 rounded">
                       <v-icon
-                        class="mb-2"
-                        color="grey"
-                        size="48"
+                       class="mb-2"
+                       color="grey"
+                       size="48"
                       >
-                        mdi-text
+                       mdi-text
                       </v-icon>
                       <p class="text-body-2 text-grey">
-                        No logos uploaded. App name will be displayed as text.
+                       No logos uploaded. App name will be displayed as text.
                       </p>
                     </div>
                   </v-card-text>
@@ -851,7 +968,7 @@
                     { title: 'Right', value: 'right' }
                   ]"
                   label="Logo Position"
-                          :variant="variant"
+                         :variant="variant"
                 />
 
                 <!-- Menu Position -->
@@ -866,7 +983,7 @@
                     { title: 'Right', value: 'right' }
                   ]"
                   label="Menu Position"
-                          :variant="variant"
+                         :variant="variant"
                 />
 
                 <!-- Save Button -->
@@ -874,7 +991,7 @@
                   color="primary"
                   :loading="headerLoading"
                   prepend-icon="mdi-content-save"
-                          :size="size"
+                         :size="size"
                   @click="saveHeaderSettings"
                 >
                   Save Header Settings
@@ -907,7 +1024,7 @@
                     { title: 'Expanded (Full Sections)', value: 'expanded' }
                   ]"
                   label="Footer Style"
-                          :variant="variant"
+                         :variant="variant"
                 />
 
                 <!-- Copyright Text (available for both styles) -->
@@ -919,7 +1036,7 @@
                   hint="Supports HTML for links (e.g., <a href='...' class='developer-link'>Arrafi</a>)"
                   label="Copyright Text (Optional)"
                   persistent-hint
-                          :variant="variant"
+                         :variant="variant"
                 />
 
                 <!-- Expanded Footer Options (only show if style is expanded) -->
@@ -927,45 +1044,45 @@
                   <!-- Company Information -->
                   <v-card
                     class="mb-4"
-                              variant="outlined"
+                             variant="outlined"
                   >
                     <v-card-title class="text-subtitle-1">
                       Company Information
                     </v-card-title>
                     <v-card-text>
                       <v-text-field
-                        v-model="footerSettings.companyName"
-                        class="mb-4"
-                        :density="density"
-                        hide-details="auto"
-                        label="Company Name"
-                                      :variant="variant"
+                       v-model="footerSettings.companyName"
+                       class="mb-4"
+                       :density="density"
+                       hide-details="auto"
+                       label="Company Name"
+                                     :variant="variant"
                       />
                       <v-textarea
-                        v-model="footerSettings.companyAddress"
-                        class="mb-4"
-                        :density="density"
-                        hide-details="auto"
-                        label="Address"
-                                      rows="2"
-                        :variant="variant"
+                       v-model="footerSettings.companyAddress"
+                       class="mb-4"
+                       :density="density"
+                       hide-details="auto"
+                       label="Address"
+                                     rows="2"
+                       :variant="variant"
                       />
                       <v-text-field
-                        v-model="footerSettings.companyEmail"
-                        class="mb-4"
-                        :density="density"
-                        hide-details="auto"
-                        label="Email"
-                                      type="email"
-                        :variant="variant"
+                       v-model="footerSettings.companyEmail"
+                       class="mb-4"
+                       :density="density"
+                       hide-details="auto"
+                       label="Email"
+                                     type="email"
+                       :variant="variant"
                       />
                       <v-text-field
-                        v-model="footerSettings.companyPhone"
-                        class="mb-4"
-                        :density="density"
-                        hide-details="auto"
-                        label="Phone"
-                                      :variant="variant"
+                       v-model="footerSettings.companyPhone"
+                       class="mb-4"
+                       :density="density"
+                       hide-details="auto"
+                       label="Phone"
+                                     :variant="variant"
                       />
                     </v-card-text>
                   </v-card>
@@ -973,66 +1090,66 @@
                   <!-- Quick Links -->
                   <v-card
                     class="mb-4"
-                              variant="outlined"
+                             variant="outlined"
                   >
                     <v-card-title class="text-subtitle-1">
                       Quick Links
                     </v-card-title>
                     <v-card-text>
                       <div
-                        v-for="(link, index) in footerSettings.quickLinks"
-                        :key="index"
-                        class="d-flex align-center mb-2"
+                       v-for="(link, index) in footerSettings.quickLinks"
+                       :key="index"
+                       class="d-flex align-center mb-2"
                       >
-                        <v-text-field
-                          class="me-2"
-                          :density="density"
-                          hide-details
-                          label="Title"
-                          :model-value="link.title"
-                          :variant="variant"
-                          @update:model-value="link.title = $event"
-                        />
-                        <v-text-field
-                          class="me-2"
-                          :density="density"
-                          hide-details
-                          label="Route Name"
-                          :model-value="link.routeName"
-                          :variant="variant"
-                          @update:model-value="link.routeName = $event"
-                        />
-                        <v-btn
-                          color="error"
-                          icon="mdi-delete"
-                          :size="size"
-                          variant="text"
-                          @click="removeQuickLink(index)"
-                        />
+                       <v-text-field
+                         class="me-2"
+                         :density="density"
+                         hide-details
+                         label="Title"
+                         :model-value="link.title"
+                         :variant="variant"
+                         @update:model-value="link.title = $event"
+                       />
+                       <v-text-field
+                         class="me-2"
+                         :density="density"
+                         hide-details
+                         label="Route Name"
+                         :model-value="link.routeName"
+                         :variant="variant"
+                         @update:model-value="link.routeName = $event"
+                       />
+                       <v-btn
+                         color="error"
+                         icon="mdi-delete"
+                         :size="size"
+                         variant="text"
+                         @click="removeQuickLink(index)"
+                       />
                       </div>
                       <div class="d-flex align-center mb-2">
-                        <v-text-field
-                          v-model="newQuickLink.title"
-                          class="me-2"
-                          :density="density"
-                          hide-details
-                          label="Title"
-                          :variant="variant"
-                        />
-                        <v-text-field
-                          v-model="newQuickLink.routeName"
-                          class="me-2"
-                          :density="density"
-                          hide-details
-                          label="Route Name"
-                          :variant="variant"
-                        />
-                        <v-btn
-                          color="primary"
-                          icon="mdi-plus"
-                          :size="size"
-                          @click="addQuickLink"
-                        />
+                       <v-text-field
+                         v-model="newQuickLink.title"
+                         class="me-2"
+                         :density="density"
+                         hide-details
+                         label="Title"
+                         :variant="variant"
+                       />
+                       <v-text-field
+                         v-model="newQuickLink.routeName"
+                         class="me-2"
+                         :density="density"
+                         hide-details
+                         label="Route Name"
+                         :variant="variant"
+                       />
+                       <v-btn
+                         color="primary"
+                         icon="mdi-plus"
+                         :size="size"
+                         @click="addQuickLink"
+                       />
                       </div>
                     </v-card-text>
                   </v-card>
@@ -1040,35 +1157,35 @@
                   <!-- Social Media Links -->
                   <v-card
                     class="mb-4"
-                              variant="outlined"
+                             variant="outlined"
                   >
                     <v-card-title class="text-subtitle-1">
                       Social Media Links
                     </v-card-title>
                     <v-card-text>
                       <v-text-field
-                        v-model="footerSettings.socialLinks.facebook"
-                        class="mb-4"
-                        :density="density"
-                        hide-details="auto"
-                        label="Facebook URL"
-                                      :variant="variant"
+                       v-model="footerSettings.socialLinks.facebook"
+                       class="mb-4"
+                       :density="density"
+                       hide-details="auto"
+                       label="Facebook URL"
+                                     :variant="variant"
                       />
                       <v-text-field
-                        v-model="footerSettings.socialLinks.instagram"
-                        class="mb-4"
-                        :density="density"
-                        hide-details="auto"
-                        label="Instagram URL"
-                                      :variant="variant"
+                       v-model="footerSettings.socialLinks.instagram"
+                       class="mb-4"
+                       :density="density"
+                       hide-details="auto"
+                       label="Instagram URL"
+                                     :variant="variant"
                       />
                       <v-text-field
-                        v-model="footerSettings.socialLinks.tiktok"
-                        class="mb-4"
-                        :density="density"
-                        hide-details="auto"
-                        label="TikTok URL"
-                                      :variant="variant"
+                       v-model="footerSettings.socialLinks.tiktok"
+                       class="mb-4"
+                       :density="density"
+                       hide-details="auto"
+                       label="TikTok URL"
+                                     :variant="variant"
                       />
                     </v-card-text>
                   </v-card>
@@ -1079,7 +1196,7 @@
                   color="primary"
                   :loading="footerLoading"
                   prepend-icon="mdi-content-save"
-                          :size="size"
+                         :size="size"
                   @click="saveFooterSettings"
                 >
                   Save Footer Settings
@@ -1111,7 +1228,7 @@
                     { title: 'Light', value: 'light' }
                   ]"
                   label="Default Theme"
-                          :variant="variant"
+                         :variant="variant"
                 />
 
                 <!-- Mode Tabs (Colors, Advanced) -->
@@ -1138,68 +1255,68 @@
                       :density="density"
                     >
                       <v-tab value="light">
-                        Light Theme
+                       Light Theme
                       </v-tab>
                       <v-tab value="dark">
-                        Dark Theme
+                       Dark Theme
                       </v-tab>
                     </v-tabs>
 
                     <v-window v-model="selectedThemeTab">
                       <!-- Light Theme Colors -->
                       <v-window-item value="light">
-                        <v-card
-                          class="mt-4"
-                          variant="outlined"
-                        >
-                          <v-card-text>
-                            <v-row>
-                              <v-col
-                                v-for="colorKey in colorKeys"
-                                :key="colorKey"
-                                cols="12"
-                                md="4"
-                                sm="6"
-                              >
-                                <ColorPicker
-                                  :key="`light-${colorKey}`"
-                                  :label="colorKey"
-                                  :model-value="appearanceSettings.lightColors[colorKey]"
-                                  :picker-key="`light-${colorKey}`"
-                                  @update:model-value="appearanceSettings.lightColors[colorKey] = $event"
-                                />
-                              </v-col>
-                            </v-row>
-                          </v-card-text>
-                        </v-card>
+                       <v-card
+                         class="mt-4"
+                         variant="outlined"
+                       >
+                         <v-card-text>
+                           <v-row>
+                             <v-col
+                               v-for="colorKey in colorKeys"
+                               :key="colorKey"
+                               cols="12"
+                               md="4"
+                               sm="6"
+                             >
+                               <ColorPicker
+                                 :key="`light-${colorKey}`"
+                                 :label="colorKey"
+                                 :model-value="appearanceSettings.lightColors[colorKey]"
+                                 :picker-key="`light-${colorKey}`"
+                                 @update:model-value="appearanceSettings.lightColors[colorKey] = $event"
+                               />
+                             </v-col>
+                           </v-row>
+                         </v-card-text>
+                       </v-card>
                       </v-window-item>
 
                       <!-- Dark Theme Colors -->
                       <v-window-item value="dark">
-                        <v-card
-                          class="mt-4"
-                          variant="outlined"
-                        >
-                          <v-card-text>
-                            <v-row>
-                              <v-col
-                                v-for="colorKey in colorKeys"
-                                :key="colorKey"
-                                cols="12"
-                                md="4"
-                                sm="6"
-                              >
-                                <ColorPicker
-                                  :key="`dark-${colorKey}`"
-                                  :label="colorKey"
-                                  :model-value="appearanceSettings.darkColors[colorKey]"
-                                  :picker-key="`dark-${colorKey}`"
-                                  @update:model-value="appearanceSettings.darkColors[colorKey] = $event"
-                                />
-                              </v-col>
-                            </v-row>
-                          </v-card-text>
-                        </v-card>
+                       <v-card
+                         class="mt-4"
+                         variant="outlined"
+                       >
+                         <v-card-text>
+                           <v-row>
+                             <v-col
+                               v-for="colorKey in colorKeys"
+                               :key="colorKey"
+                               cols="12"
+                               md="4"
+                               sm="6"
+                             >
+                               <ColorPicker
+                                 :key="`dark-${colorKey}`"
+                                 :label="colorKey"
+                                 :model-value="appearanceSettings.darkColors[colorKey]"
+                                 :picker-key="`dark-${colorKey}`"
+                                 @update:model-value="appearanceSettings.darkColors[colorKey] = $event"
+                               />
+                             </v-col>
+                           </v-row>
+                         </v-card-text>
+                       </v-card>
                       </v-window-item>
                     </v-window>
                   </v-window-item>
@@ -1213,74 +1330,74 @@
                       :density="density"
                     >
                       <v-tab value="light">
-                        Light Theme JSON
+                       Light Theme JSON
                       </v-tab>
                       <v-tab value="dark">
-                        Dark Theme JSON
+                       Dark Theme JSON
                       </v-tab>
                     </v-tabs>
 
                     <v-window v-model="selectedThemeTab">
                       <!-- Light Theme JSON -->
                       <v-window-item value="light">
-                        <v-card
-                          class="mt-4"
-                          variant="outlined"
-                        >
-                          <v-card-text>
-                            <v-textarea
-                              v-model="advancedJson.light"
-                              :density="density"
-                              :error="!!jsonError.light"
-                              :error-messages="jsonError.light"
-                              hide-details="auto"
-                              label="Light Theme JSON"
-                                  rows="15"
-                              :variant="variant"
-                            />
-                            <v-btn
-                              class="mt-4"
-                              color="primary"
-                              :density="density"
-                              prepend-icon="mdi-check"
-                                  :size="size"
-                              @click="parseAdvancedJson('light')"
-                            >
-                              Parse & Apply JSON
-                            </v-btn>
-                          </v-card-text>
-                        </v-card>
+                       <v-card
+                         class="mt-4"
+                         variant="outlined"
+                       >
+                         <v-card-text>
+                           <v-textarea
+                             v-model="advancedJson.light"
+                             :density="density"
+                             :error="!!jsonError.light"
+                             :error-messages="jsonError.light"
+                             hide-details="auto"
+                             label="Light Theme JSON"
+                                 rows="15"
+                             :variant="variant"
+                           />
+                           <v-btn
+                             class="mt-4"
+                             color="primary"
+                             :density="density"
+                             prepend-icon="mdi-check"
+                                 :size="size"
+                             @click="parseAdvancedJson('light')"
+                           >
+                             Parse & Apply JSON
+                           </v-btn>
+                         </v-card-text>
+                       </v-card>
                       </v-window-item>
 
                       <!-- Dark Theme JSON -->
                       <v-window-item value="dark">
-                        <v-card
-                          class="mt-4"
-                          variant="outlined"
-                        >
-                          <v-card-text>
-                            <v-textarea
-                              v-model="advancedJson.dark"
-                              :density="density"
-                              :error="!!jsonError.dark"
-                              :error-messages="jsonError.dark"
-                              hide-details="auto"
-                              label="Dark Theme JSON"
-                                  rows="15"
-                              :variant="variant"
-                            />
-                            <v-btn
-                              class="mt-4"
-                              color="primary"
-                              :density="density"
-                              prepend-icon="mdi-check"
-                                  :size="size"
-                              @click="parseAdvancedJson('dark')"
-                            >
-                              Parse & Apply JSON
-                            </v-btn>
-                          </v-card-text>
-                        </v-card>
+                       <v-card
+                         class="mt-4"
+                         variant="outlined"
+                       >
+                         <v-card-text>
+                           <v-textarea
+                             v-model="advancedJson.dark"
+                             :density="density"
+                             :error="!!jsonError.dark"
+                             :error-messages="jsonError.dark"
+                             hide-details="auto"
+                             label="Dark Theme JSON"
+                                 rows="15"
+                             :variant="variant"
+                           />
+                           <v-btn
+                             class="mt-4"
+                             color="primary"
+                             :density="density"
+                             prepend-icon="mdi-check"
+                                 :size="size"
+                             @click="parseAdvancedJson('dark')"
+                           >
+                             Parse & Apply JSON
+                           </v-btn>
+                         </v-card-text>
+                       </v-card>
                       </v-window-item>
                     </v-window>
                   </v-window-item>
@@ -1292,7 +1409,7 @@
                   color="primary"
                   :loading="appearanceLoading"
                   prepend-icon="mdi-content-save"
-                          :size="size"
+                         :size="size"
                   @click="saveAppearanceSettings"
                 >
                   Save Appearance Settings
@@ -1300,6 +1417,199 @@
               </v-form>
             </v-expansion-panel-text>
           </v-expansion-panel>
+ 
+           <!-- Form Management Section -->
+           <v-expansion-panel>
+             <v-expansion-panel-title>
+               <v-icon class="me-2">mdi-form-select</v-icon>
+               <span class="text-h6">Form Management</span>
+             </v-expansion-panel-title>
+             <v-expansion-panel-text>
+               <div class="text-body-2 text-medium-emphasis mb-4">
+                 Manage form field labels, visibility, and requirements. Changes reflect on the Create/Edit Load screens.
+               </div>
+ 
+               <v-divider class="mb-4" />
+ 
+               <div class="d-flex justify-end mb-4">
+                 <v-btn
+                   color="primary"
+                   prepend-icon="mdi-plus"
+                   variant="tonal"
+                   @click="openCustomFieldDialog"
+                 >
+                   Add New Field
+                 </v-btn>
+               </div>
+ 
+               <v-table density="comfortable">
+                 <thead>
+                   <tr>
+                     <th class="text-left">Field Key</th>
+                     <th class="text-left" style="min-width: 250px;">Display Label</th>
+                     <th class="text-center">Show on Form</th>
+                     <th class="text-center">Show on PDF</th>
+                     <th class="text-right">Actions</th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                   <tr v-for="field in formConfig" :key="field.id">
+                     <td>
+                      <code class="text-caption">{{ field.fieldKey }}</code>
+                      <v-chip v-if="field.type === 'CORE'" size="x-small" color="info" variant="flat" class="ms-2">CORE</v-chip>
+                      <v-chip v-else size="x-small" color="secondary" variant="flat" class="ms-2">CUSTOM</v-chip>
+                     </td>
+                      <td>
+                       <v-text-field
+                         v-model="field.label"
+                         density="comfortable"
+                         hide-details
+                         variant="outlined"
+                         class="my-1"
+                         @update:model-value="updateField(field)"
+                       />
+                      </td>
+                      <td class="text-center">
+                       <v-checkbox-btn
+                         v-model="field.isVisible"
+                         density="compact"
+                         color="primary"
+                         @update:model-value="updateField(field)"
+                       />
+                      </td>
+                      <td class="text-center">
+                       <v-checkbox-btn
+                         v-model="field.showOnPdf"
+                         density="compact"
+                         color="secondary"
+                         @update:model-value="updateField(field)"
+                       />
+                      </td>
+                      <td class="text-right">
+                       <v-btn
+                         v-if="field.type === 'CUSTOM'"
+                         icon="mdi-delete"
+                         color="error"
+                         size="small"
+                         variant="text"
+                         @click="deleteField(field.id)"
+                       />
+                       <v-chip
+                         v-else
+                         size="x-small"
+                         variant="text"
+                         color="grey"
+                         prepend-icon="mdi-lock"
+                         class="opacity-60"
+                       >
+                         System
+                       </v-chip>
+                      </td>
+                   </tr>
+                 </tbody>
+                </v-table>
+
+                <div class="mt-4">
+                  <v-btn
+                    color="primary"
+                    :loading="formSaving"
+                    prepend-icon="mdi-content-save"
+                    @click="saveFormConfig"
+                  >
+                    Save Form Changes
+                  </v-btn>
+                </div>
+             </v-expansion-panel-text>
+           </v-expansion-panel>
+ 
+           <!-- PDF Settings Section -->
+           <v-expansion-panel>
+             <v-expansion-panel-title>
+               <v-icon class="me-2">mdi-file-pdf-box</v-icon>
+               <span class="text-h6">PDF Settings</span>
+             </v-expansion-panel-title>
+             <v-expansion-panel-text>
+               <div class="text-body-2 text-medium-emphasis mb-4">
+                 Configure how the Vehicle Release PDF looks and what static information it displays.
+               </div>
+ 
+               <v-form>
+                 <v-row>
+                   <v-col cols="12" md="6">
+                     <v-text-field
+                      v-model="pdfSettings.supportPhone"
+                      label="Support Phone Number"
+                      placeholder="e.g., 713-303-8890"
+                      prepend-inner-icon="mdi-phone"
+                      variant="outlined"
+                      density="comfortable"
+                     />
+                   </v-col>
+                   <v-col cols="12" md="6">
+                     <v-text-field
+                      v-model="pdfSettings.supportEmail"
+                      label="Support Email Address"
+                      placeholder="e.g., dispatch@DTHLogistics.com"
+                      prepend-inner-icon="mdi-email"
+                      variant="outlined"
+                      density="comfortable"
+                     />
+                   </v-col>
+                   <v-col cols="12">
+                     <v-textarea
+                      v-model="pdfSettings.disclaimerText"
+                      label="PDF Disclaimer Text"
+                      placeholder="The text that appears at the bottom of the PDF..."
+                      variant="outlined"
+                      rows="3"
+                      auto-grow
+                     />
+                   </v-col>
+                    <v-col cols="12">
+                      <v-text-field
+                        v-model="pdfSettings.headerTitle"
+                        label="PDF Header Title"
+                        placeholder="VEHICLE RELEASE AUTHORIZATION"
+                        variant="outlined"
+                        density="comfortable"
+                        class="mb-4"
+                      />
+                    </v-col>
+                    <v-col cols="12" md="6">
+                      <v-slider
+                        v-model="pdfSettings.logoHeight"
+                        label="Logo Height (px)"
+                        min="50"
+                        max="300"
+                        step="10"
+                        thumb-label
+                        color="primary"
+                      />
+                    </v-col>
+                    <v-col cols="12" md="6">
+                      <v-slider
+                        v-model="pdfSettings.qrCodeSize"
+                        label="QR Code Size (px)"
+                        min="50"
+                        max="250"
+                        step="10"
+                        thumb-label
+                        color="secondary"
+                      />
+                    </v-col>
+                 </v-row>
+ 
+                 <v-btn
+                   color="primary"
+                   :loading="pdfLoading"
+                   prepend-icon="mdi-content-save"
+                   @click="savePdfSettings"
+                 >
+                   Save PDF Settings
+                 </v-btn>
+               </v-form>
+             </v-expansion-panel-text>
+           </v-expansion-panel>
 
         </v-expansion-panels>
       </v-col>
@@ -1420,7 +1730,52 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-  </v-container>
+ 
+     <!-- Custom Field Dialog -->
+     <v-dialog v-model="customFieldDialog" max-width="500">
+       <v-card rounded="lg">
+         <v-card-title class="pa-6 pb-0">Add Custom Form Field</v-card-title>
+         <v-card-text class="pa-6">
+           <v-form @submit.prevent="addCustomField">
+             <v-text-field
+               v-model="newCustomField.fieldKey"
+               label="Technical Field Key (e.g., gateCode)"
+               placeholder="gateCode"
+               variant="outlined"
+               density="comfortable"
+               class="mb-4"
+               hint="Use camelCase, no spaces"
+               persistent-hint
+             />
+             <v-text-field
+               v-model="newCustomField.label"
+               label="Display Label"
+               placeholder="Gate Code"
+               variant="outlined"
+               density="comfortable"
+               class="mb-4"
+             />
+             <v-select
+               v-model="newCustomField.inputType"
+               label="Input Type"
+               :items="['TEXT', 'TEXTAREA', 'NUMBER']"
+               variant="outlined"
+               density="comfortable"
+               class="mb-4"
+             />
+             <div class="d-flex gap-4">
+               <v-checkbox v-model="newCustomField.showOnPdf" label="Show on PDF" hide-details />
+             </div>
+           </v-form>
+         </v-card-text>
+         <v-card-actions class="pa-6 pt-0">
+           <v-spacer />
+           <v-btn variant="text" @click="customFieldDialog = false">Cancel</v-btn>
+           <v-btn color="primary" variant="flat" :disabled="!newCustomField.fieldKey || !newCustomField.label" @click="addCustomField">Create Field</v-btn>
+         </v-card-actions>
+       </v-card>
+     </v-dialog>
+   </v-container>
 </template>
 
 <style scoped>

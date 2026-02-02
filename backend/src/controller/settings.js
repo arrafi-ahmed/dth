@@ -149,4 +149,71 @@ router.get("/layout", async (req, res, next) => {
     }
 });
 
+// --- Form Configuration ---
+
+router.get("/form-config", auth, async (req, res, next) => {
+    try {
+        const config = await settingsService.getFormFieldConfigs();
+        res.status(200).json(new ApiResponse({ payload: config }));
+    } catch (err) {
+        next(err);
+    }
+});
+
+router.put("/form-config", auth, isAdmin, async (req, res, next) => {
+    try {
+        const configs = await settingsService.batchUpdateFormFieldConfigs(req.body);
+        res.status(200).json(new ApiResponse({ msg: "Form configuration updated", payload: configs }));
+    } catch (err) {
+        next(err);
+    }
+});
+
+router.put("/form-config/:id", auth, isAdmin, async (req, res, next) => {
+    try {
+        const config = await settingsService.updateFormFieldConfig(req.params.id, req.body);
+        res.status(200).json(new ApiResponse({ msg: "Field configuration updated", payload: config }));
+    } catch (err) {
+        next(err);
+    }
+});
+
+router.post("/form-config/custom", auth, isAdmin, async (req, res, next) => {
+    try {
+        const field = await settingsService.createCustomField(req.body);
+        res.status(201).json(new ApiResponse({ msg: "Custom field created", payload: field }));
+    } catch (err) {
+        next(err);
+    }
+});
+
+router.delete("/form-config/:id", auth, isAdmin, async (req, res, next) => {
+    try {
+        await settingsService.deleteCustomField(req.params.id);
+        res.status(200).json(new ApiResponse({ msg: "Custom field deleted" }));
+    } catch (err) {
+        next(err);
+    }
+});
+
+// --- PDF Settings ---
+
+router.get("/pdf-settings", auth, async (req, res, next) => {
+    try {
+        const settings = await settingsService.getPdfSettings();
+        res.status(200).json(new ApiResponse({ payload: settings }));
+    } catch (err) {
+        next(err);
+    }
+});
+
+router.put("/pdf-settings", auth, isAdmin, async (req, res, next) => {
+    try {
+        const settings = await settingsService.updatePdfSettings(req.body);
+        res.status(200).json(new ApiResponse({ msg: "PDF settings updated", payload: settings }));
+    } catch (err) {
+        next(err);
+    }
+});
+
 module.exports = router;

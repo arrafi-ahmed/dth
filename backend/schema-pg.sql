@@ -129,3 +129,33 @@ CREATE INDEX IF NOT EXISTS idx_loads_verification_token ON loads (verification_t
 CREATE INDEX IF NOT EXISTS idx_loads_status ON loads (status);
 CREATE INDEX IF NOT EXISTS idx_loads_vin_last_6 ON loads (vin_last_6);
 CREATE INDEX IF NOT EXISTS idx_load_logs_load_id ON load_logs (load_id);
+
+CREATE TABLE form_field_configs (
+    id SERIAL PRIMARY KEY,
+    type VARCHAR(20) NOT NULL DEFAULT 'CORE',
+    field_key VARCHAR(100) NOT NULL UNIQUE,
+    input_type VARCHAR(20) NOT NULL DEFAULT 'TEXT',
+    label VARCHAR(255) NOT NULL,
+    is_visible BOOLEAN DEFAULT TRUE,
+    is_required BOOLEAN DEFAULT FALSE,
+    show_on_pdf BOOLEAN DEFAULT TRUE,
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE pdf_settings (
+    id SERIAL PRIMARY KEY,
+    disclaimer_text TEXT,
+    support_phone VARCHAR(50),
+    support_email VARCHAR(255),
+    logo_height INTEGER DEFAULT 130,
+    header_title VARCHAR(255) DEFAULT 'VEHICLE RELEASE AUTHORIZATION',
+    qr_code_size INTEGER DEFAULT 120,
+    footer_text TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pdf_settings_singleton ON pdf_settings ((1));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_form_field_configs_field_key ON form_field_configs (field_key);

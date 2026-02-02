@@ -8,87 +8,96 @@
             font-family: 'Helvetica', 'Arial', sans-serif;
             color: #333;
             margin: 0;
-            padding: 40px;
+            padding: 20px;
+            /* Reduced padding */
         }
 
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding-bottom: 15px;
-            margin-bottom: 30px;
+            padding-bottom: 10px;
+            /* Reduced */
+            margin-bottom: 15px;
+            /* Reduced */
         }
 
-        .logo {
-            height: 130px;
-        }
+        /* Dynamic styles moved to inline to avoid parser errors */
+        /* .logo { height: {{logoHeightCss}}; } */
+        /* .qr-code { width: {{qrCodeSizeCss}}; height: {{qrCodeSizeCss}}; } */
 
         .load-info {
             text-align: right;
         }
 
         .load-id {
-            font-size: 24px;
+            font-size: 18px;
+            /* Reduced from 24px */
             font-weight: bold;
         }
 
         .qr-section {
             display: flex;
             justify-content: center;
-            margin: 30px 0;
+            margin: 10px 0;
+            /* Reduced from 30px */
             text-align: center;
-        }
-
-        .qr-code {
-            width: 200px;
-            height: 200px;
         }
 
         .grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
+            gap: 5px;
+            /* Reduced from 10px */
+            margin-bottom: 5px;
+            /* Reduced from 15px */
         }
 
         .section-title {
             font-weight: bold;
             text-transform: uppercase;
-            font-size: 14px;
+            font-size: 12px;
+            /* Reduced */
             color: #666;
             border-bottom: 1px solid #eee;
-            padding-bottom: 5px;
-            margin-bottom: 10px;
+            padding-bottom: 3px;
+            margin-bottom: 5px;
         }
 
         .item {
-            margin-bottom: 10px;
+            margin-bottom: 5px;
+            /* Reduced */
         }
 
         .label {
-            font-size: 11px;
+            font-size: 10px;
+            /* Reduced */
             color: #888;
             display: block;
         }
 
         .value {
-            font-size: 16px;
+            font-size: 13px;
+            /* Reduced */
             font-weight: 500;
         }
 
         .footer {
-            margin-top: 50px;
-            padding-top: 20px;
+            margin-top: 20px;
+            /* Reduced from 50px */
+            padding-top: 10px;
             border-top: 1px solid #eee;
-            font-size: 12px;
+            font-size: 10px;
+            /* Reduced */
             text-align: center;
             color: #666;
         }
 
         .highlight {
             background-color: #f8f8f8;
-            padding: 15px;
-            border-radius: 8px;
+            padding: 10px;
+            /* Reduced */
+            border-radius: 6px;
         }
     </style>
 </head>
@@ -97,106 +106,153 @@
     <div class="header" style="border-bottom: 2px solid {{primaryColor}};">
         <div>
             {{#if logoBase64}}
-            <img src="{{logoBase64}}" class="logo" alt="Logo">
+            <img src="{{logoBase64}}" class="logo" alt="Logo" style="height: {{logoHeightCss}};">
             {{else if logo}}
-            <img src="{{logo}}" class="logo" alt="Logo">
+            <img src="{{logo}}" class="logo" alt="Logo" style="height: {{logoHeightCss}};">
             {{else}}
             <h1 style="margin:0; color: {{primaryColor}};">{{appName}}</h1>
             {{/if}}
         </div>
         <div class="load-info">
-            <div class="load-id" style="color: {{primaryColor}};">{{loadId}}</div>
-            <div class="label">VEHICLE RELEASE AUTHORIZATION</div>
+            <div class="load-id" style="color: {{primaryColor}};">{{fields.loadId.value}}</div>
+            <div class="label">{{headerTitle}}</div>
         </div>
     </div>
 
     <div class="qr-section">
         <div>
-            <img src="{{qrDataUrl}}" class="qr-code" alt="QR Code">
+            <img src="{{qrDataUrl}}" class="qr-code" alt="QR Code"
+                style="width: {{qrCodeSizeCss}}; height: {{qrCodeSizeCss}};">
             <div style="margin-top: 10px; font-weight: bold;">SCAN TO VERIFY RELEASE</div>
             <div class="label">(PIN is NOT printed on this document)</div>
         </div>
     </div>
 
     <div class="grid">
+        {{#if fields.vehicleYear.isVisible}}
         <div class="highlight">
-            <div class="section-title">Vehicle Details</div>
+            <div class="section-title">{{fields.vehicleYear.label}}</div>
             <div class="item">
-                <span class="label">YEAR / MAKE / MODEL</span>
-                <span class="value">{{vehicleYear}} {{vehicleMake}} {{vehicleModel}}</span>
+                <span class="value">{{fields.vehicleYear.value}} {{fields.vehicleMake.value}}
+                    {{fields.vehicleModel.value}}</span>
             </div>
+            {{#if fields.vinLast6.isVisible}}
             <div class="item">
-                <span class="label">VIN (LAST 6)</span>
-                <span class="value">{{vinLast6}}</span>
-            </div>
-        </div>
-        <div class="highlight">
-            <div class="section-title">Pickup Location</div>
-            <div class="item">
-                <span class="label">LOCATION NAME</span>
-                <span class="value">{{pickupLocation}}</span>
-            </div>
-            {{#if pickupContact}}
-            <div class="item">
-                <span class="label">CONTACT</span>
-                <span class="value">{{pickupContact}}</span>
+                <span class="label">{{fields.vinLast6.label}}</span>
+                <span class="value">{{fields.vinLast6.value}}</span>
             </div>
             {{/if}}
         </div>
+        {{/if}}
+
+        {{#if fields.pickupLocation.isVisible}}
+        <div class="highlight">
+            <div class="section-title">{{fields.pickupLocation.label}}</div>
+            <div class="item">
+                <span class="value">{{fields.pickupLocation.value}}</span>
+            </div>
+            {{#if fields.pickupContact.isVisible}}
+            {{#if fields.pickupContact.value}}
+            <div class="item">
+                <span class="label">{{fields.pickupContact.label}}</span>
+                <span class="value">{{fields.pickupContact.value}}</span>
+            </div>
+            {{/if}}
+            {{/if}}
+        </div>
+        {{/if}}
     </div>
 
-    {{#if pickupInfo}}
-    <div class="grid" style="margin-bottom: 30px;">
+    {{#if fields.pickupInfo.isVisible}}
+    {{#if fields.pickupInfo.value}}
+    <div class="grid" style="margin-bottom: 10px;">
         <div class="highlight" style="grid-column: span 2;">
-            <div class="section-title">Pickup Instructions</div>
-            <div class="value" style="font-size: 14px; white-space: pre-wrap;">{{pickupInfo}}</div>
+            <div class="section-title">{{fields.pickupInfo.label}}</div>
+            <div class="value" style="font-size: 14px; white-space: pre-wrap;">{{fields.pickupInfo.value}}</div>
+        </div>
+    </div>
+    {{/if}}
+    {{/if}}
+
+    <!-- Custom Fields Section -->
+    {{#if customFields.length}}
+    <div class="grid" style="margin-bottom: 10px;">
+        <div class="highlight" style="grid-column: span 2;">
+            <div class="section-title">Additional Information</div>
+            <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 0;">
+                {{#each customFields}}
+                <div class="item">
+                    <span class="label">{{this.label}}</span>
+                    <span class="value">{{this.value}}</span>
+                </div>
+                {{/each}}
+            </div>
         </div>
     </div>
     {{/if}}
 
     <div class="grid">
         <div class="highlight">
-            <div class="section-title">Logistics Partner</div>
+            <div class="section-title">Logistics & Partner</div>
+            {{#if fields.carrierName.isVisible}}
             <div class="item">
-                <span class="label">CARRIER</span>
-                <span class="value">{{carrierName}}</span>
+                <span class="label">{{fields.carrierName.label}}</span>
+                <span class="value">{{fields.carrierName.value}}</span>
             </div>
+            {{/if}}
+            {{#if fields.driverName.isVisible}}
             <div class="item">
-                <span class="label">DRIVER</span>
-                <span class="value">{{driverName}}</span>
+                <span class="label">{{fields.driverName.label}}</span>
+                <span class="value">{{fields.driverName.value}}</span>
             </div>
+            {{/if}}
+            {{#if fields.driverLicenseInfo.isVisible}}
+            <div class="item">
+                <span class="label">{{fields.driverLicenseInfo.label}}</span>
+                <span class="value">{{fields.driverLicenseInfo.value}}</span>
+            </div>
+            {{/if}}
+        </div>
+
+        <div class="highlight">
+            <div class="section-title">Transport Details</div>
+            {{#if fields.truckPlate.isVisible}}
+            <div class="item">
+                <span class="label">{{fields.truckPlate.label}}</span>
+                <span class="value">{{fields.truckPlate.value}}</span>
+            </div>
+            {{/if}}
+            {{#if fields.trailerPlate.isVisible}}
+            <div class="item">
+                <span class="label">{{fields.trailerPlate.label}}</span>
+                <span class="value">{{fields.trailerPlate.value}}</span>
+            </div>
+            {{/if}}
         </div>
     </div>
 
+    {{#if fields.pickupWindowStart.isVisible}}
     <div class="grid">
-        <div class="highlight">
-            <div class="section-title">Transport Vehicle</div>
-            <div class="item">
-                <span class="label">TRUCK PLATE</span>
-                <span class="value">{{truckPlate}}</span>
-            </div>
-            <div class="item">
-                <span class="label">TRAILER PLATE</span>
-                <span class="value">{{trailerPlate}}</span>
-            </div>
-        </div>
-        <div class="highlight">
+        <div class="highlight" style="grid-column: span 2;">
             <div class="section-title">Pickup Window</div>
-            <div class="item">
-                <span class="label">VALID FROM</span>
-                <span class="value">{{pickupWindowStart}}</span>
-            </div>
-            <div class="item">
-                <span class="label">EXPIRES ON</span>
-                <span class="value">{{pickupWindowEnd}}</span>
+            <div class="grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 0;">
+                <div class="item">
+                    <span class="label">{{fields.pickupWindowStart.label}}</span>
+                    <span class="value">{{fields.pickupWindowStart.value}}</span>
+                </div>
+                <div class="item">
+                    <span class="label">{{fields.pickupWindowEnd.label}}</span>
+                    <span class="value">{{fields.pickupWindowEnd.value}}</span>
+                </div>
             </div>
         </div>
     </div>
+    {{/if}}
 
     <div class="footer">
-        <p>This document is an official release authorization for the vehicle described above.</p>
+        <p>{{disclaimerText}}</p>
         <p>For any questions or issues during verification, please contact <strong>DTH Logistics Dispatch</strong>:</p>
-        <p>📞 713-303-8890 | 📧 dispatch@DTHLogistics.com</p>
+        <p>📞 {{supportPhone}} | 📧 {{supportEmail}}</p>
     </div>
 </body>
 
