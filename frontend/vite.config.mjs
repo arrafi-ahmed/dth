@@ -55,28 +55,33 @@ export default defineConfig({
     viteCompression(),
   ],
   optimizeDeps: {
-    exclude: [
+    // We want these optimized for better dev performance and consistency
+    include: [
       'vuetify',
+      'vue',
       'vue-router',
-      'unplugin-vue-router/runtime',
-      'unplugin-vue-router/data-loaders',
-      'unplugin-vue-router/data-loaders/basic',
+      'vuex',
     ],
   },
   build: {
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('vuetify')) {
-            return 'vuetify-vendor'
-          }
-          if (id.includes('vue') || id.includes('vue-router') || id.includes('vuex')) {
-            return 'vue-vendor'
-          }
-          if (id.includes('@mdi')) {
-            return 'mdi-vendor'
-          }
           if (id.includes('node_modules')) {
+            // Group core framework together to prevent initialization order issues
+            if (
+              id.includes('vuetify') ||
+              id.includes('vue') ||
+              id.includes('vue-router') ||
+              id.includes('vuex') ||
+              id.includes('@vue') ||
+              id.includes('pinia')
+            ) {
+              return 'framework'
+            }
+            if (id.includes('@mdi')) {
+              return 'mdi'
+            }
             return 'vendor'
           }
         },
