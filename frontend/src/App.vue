@@ -60,20 +60,22 @@
   watch(
     appearanceSettings,
     settings => {
-      if (settings.lightColors && Object.keys(settings.lightColors).length > 0) {
+      if (!settings) return
+
+      if (settings.lightColors && typeof settings.lightColors === 'object' && Object.keys(settings.lightColors).length > 0) {
         Object.assign(theme.themes.value.light.colors, settings.lightColors)
       }
-      if (settings.darkColors && Object.keys(settings.darkColors).length > 0) {
+      if (settings.darkColors && typeof settings.darkColors === 'object' && Object.keys(settings.darkColors).length > 0) {
         Object.assign(theme.themes.value.dark.colors, settings.darkColors)
       }
       // Update variables
-      if (settings.lightVariables && Object.keys(settings.lightVariables).length > 0) {
+      if (settings.lightVariables && typeof settings.lightVariables === 'object' && Object.keys(settings.lightVariables).length > 0) {
         if (!theme.themes.value.light.variables) {
           theme.themes.value.light.variables = {}
         }
         Object.assign(theme.themes.value.light.variables, settings.lightVariables)
       }
-      if (settings.darkVariables && Object.keys(settings.darkVariables).length > 0) {
+      if (settings.darkVariables && typeof settings.darkVariables === 'object' && Object.keys(settings.darkVariables).length > 0) {
         if (!theme.themes.value.dark.variables) {
           theme.themes.value.dark.variables = {}
         }

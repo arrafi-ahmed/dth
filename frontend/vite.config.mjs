@@ -11,6 +11,7 @@ import { defineConfig } from 'vite'
 
 import Layouts from 'vite-plugin-vue-layouts-next'
 import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
+import viteCompression from 'vite-plugin-compression'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -51,6 +52,7 @@ export default defineConfig({
       },
       vueTemplate: true,
     }),
+    viteCompression(),
   ],
   optimizeDeps: {
     exclude: [
@@ -60,6 +62,26 @@ export default defineConfig({
       'unplugin-vue-router/data-loaders',
       'unplugin-vue-router/data-loaders/basic',
     ],
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('vuetify')) {
+            return 'vuetify-vendor'
+          }
+          if (id.includes('vue') || id.includes('vue-router') || id.includes('vuex')) {
+            return 'vue-vendor'
+          }
+          if (id.includes('@mdi')) {
+            return 'mdi-vendor'
+          }
+          if (id.includes('node_modules')) {
+            return 'vendor'
+          }
+        },
+      },
+    },
   },
   define: { 'process.env': {} },
   resolve: {
