@@ -25,12 +25,20 @@
   const success = ref(false)
   const enteredPin = ref('')
   const verifierName = ref('')
+  const formConfig = ref([])
+
+  function isFieldVisible (fieldKey) {
+    if (!formConfig.value || formConfig.value.length === 0) return true
+    const field = formConfig.value.find(f => f.fieldKey === fieldKey)
+    return field ? field.isVisible !== false : true
+  }
 
   async function fetchLoadDetails () {
     try {
       isLoading.value = true
       const response = await $axios.get(`/verify/${token}`, { headers: { 'X-Suppress-Toast': 'true' } })
       load.value = response.data?.payload
+      formConfig.value = response.data?.payload?.formConfig || []
     } catch (err) {
       error.value = err.response?.data?.msg || 'Invalid or expired verification link'
     } finally {
@@ -147,58 +155,62 @@
 
               <v-card-text class="pa-6">
                 <!-- Vehicle Details -->
-                <div class="mb-6">
+                <div v-if="isFieldVisible('vehicleYear') || isFieldVisible('vehicleMake') || isFieldVisible('vehicleModel') || isFieldVisible('vinLast6')" class="mb-6">
                   <div class="text-caption text-grey text-uppercase font-weight-bold mb-2">Vehicle Details</div>
-                  <div class="d-flex align-center justify-space-between mb-1">
+                  <div v-if="isFieldVisible('vehicleYear') || isFieldVisible('vehicleMake') || isFieldVisible('vehicleModel')" class="d-flex align-center justify-space-between mb-1">
                     <span class="text-body-2 text-grey">Year/Make/Model</span>
-                    <span class="text-body-1 font-weight-bold">{{ load.vehicle.year }} {{ load.vehicle.make }} {{ load.vehicle.model }}</span>
+                    <span class="text-body-1 font-weight-bold">
+                      <template v-if="isFieldVisible('vehicleYear')">{{ load.vehicle.year }} </template>
+                      <template v-if="isFieldVisible('vehicleMake')">{{ load.vehicle.make }} </template>
+                      <template v-if="isFieldVisible('vehicleModel')">{{ load.vehicle.model }}</template>
+                    </span>
                   </div>
-                  <div class="d-flex align-center justify-space-between">
+                  <div v-if="isFieldVisible('vinLast6')" class="d-flex align-center justify-space-between">
                     <span class="text-body-2 text-grey">VIN (Last 6)</span>
                     <span class="text-body-1 font-weight-bold">{{ load.vehicle.vinLast6 }}</span>
                   </div>
                 </div>
 
-                <v-divider class="mb-6" />
+                <v-divider v-if="(isFieldVisible('vehicleYear') || isFieldVisible('vehicleMake') || isFieldVisible('vehicleModel') || isFieldVisible('vinLast6')) && (isFieldVisible('carrierName') || isFieldVisible('driverName'))" class="mb-6" />
 
                 <!-- Driver & Carrier -->
-                <div class="mb-6">
+                <div v-if="isFieldVisible('carrierName') || isFieldVisible('driverName')" class="mb-6">
                   <div class="text-caption text-grey text-uppercase font-weight-bold mb-2">Logistics Partner</div>
-                  <div class="d-flex align-center justify-space-between mb-1">
+                  <div v-if="isFieldVisible('carrierName')" class="d-flex align-center justify-space-between mb-1">
                     <span class="text-body-2 text-grey">Carrier</span>
                     <span class="text-body-1 font-weight-bold">{{ load.carrier.name }}</span>
                   </div>
-                  <div class="d-flex align-center justify-space-between">
+                  <div v-if="isFieldVisible('driverName')" class="d-flex align-center justify-space-between">
                     <span class="text-body-2 text-grey">Driver</span>
                     <span class="text-body-1 font-weight-bold">{{ load.driver.name }}</span>
                   </div>
                 </div>
 
-                <v-divider class="mb-6" />
+                <v-divider v-if="(isFieldVisible('carrierName') || isFieldVisible('driverName')) && (isFieldVisible('truckPlate') || isFieldVisible('trailerPlate'))" class="mb-6" />
 
                 <!-- Plates -->
-                <div class="mb-6">
+                <div v-if="isFieldVisible('truckPlate') || isFieldVisible('trailerPlate')" class="mb-6">
                   <div class="text-caption text-grey text-uppercase font-weight-bold mb-2">Transport Vehicle</div>
-                  <div class="d-flex align-center justify-space-between mb-1">
+                  <div v-if="isFieldVisible('truckPlate')" class="d-flex align-center justify-space-between mb-1">
                     <span class="text-body-2 text-grey">Truck Plate</span>
                     <span class="text-body-1 font-weight-bold">{{ load.plates.truck }}</span>
                   </div>
-                  <div class="d-flex align-center justify-space-between">
+                  <div v-if="isFieldVisible('trailerPlate')" class="d-flex align-center justify-space-between">
                     <span class="text-body-2 text-grey">Trailer Plate</span>
                     <span class="text-body-1 font-weight-bold">{{ load.plates.trailer }}</span>
                   </div>
                 </div>
 
-                <v-divider v-if="load.pickupContact || load.pickupInfo" class="mb-6" />
+                <v-divider v-if="(isFieldVisible('truckPlate') || isFieldVisible('trailerPlate')) && (isFieldVisible('pickupContact') || isFieldVisible('pickupInfo'))" class="mb-6" />
 
                 <!-- Pickup Details -->
-                <div v-if="load.pickupContact || load.pickupInfo" class="mb-6">
+                <div v-if="isFieldVisible('pickupContact') || isFieldVisible('pickupInfo')" class="mb-6">
                   <div class="text-caption text-grey text-uppercase font-weight-bold mb-2">Pickup Details</div>
-                  <div v-if="load.pickupContact" class="d-flex align-center justify-space-between mb-1">
+                  <div v-if="isFieldVisible('pickupContact')" class="d-flex align-center justify-space-between mb-1">
                     <span class="text-body-2 text-grey">Contact</span>
                     <span class="text-body-1 font-weight-bold">{{ load.pickupContact }}</span>
                   </div>
-                  <div v-if="load.pickupInfo" class="mt-2">
+                  <div v-if="isFieldVisible('pickupInfo')" class="mt-2">
                     <span class="text-body-2 text-grey d-block mb-1">Instructions</span>
                     <div class="text-body-2 bg-grey-lighten-4 pa-2 rounded">{{ load.pickupInfo }}</div>
                   </div>

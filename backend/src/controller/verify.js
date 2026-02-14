@@ -1,5 +1,6 @@
 const router = require("express").Router();
 const loadService = require("../service/load");
+const settingsService = require("../service/settingsService");
 const ApiResponse = require("../model/ApiResponse");
 
 /**
@@ -10,6 +11,8 @@ const ApiResponse = require("../model/ApiResponse");
 router.get("/:token", async (req, res, next) => {
     try {
         const load = await loadService.getLoadByToken(req.params.token);
+
+        const formConfig = await settingsService.getFormFieldConfigs();
 
         // Sanitize response - only send what's needed for the Dealer Verification Page
         const dealerView = {
@@ -38,7 +41,12 @@ router.get("/:token", async (req, res, next) => {
             },
             pin: load.pin, // Per requirement: "Pickup PIN (displayed on screen)"
             pickupInfo: load.pickupInfo,
-            pickupContact: load.pickupContact
+            pickupContact: load.pickupContact,
+            formConfig: formConfig.map(f => ({
+                fieldKey: f.fieldKey,
+                label: f.label,
+                isVisible: f.isVisible
+            }))
         };
 
         res.status(200).json(new ApiResponse({
