@@ -99,6 +99,7 @@ CREATE TABLE loads
     created_by          INT REFERENCES app_user (id) ON DELETE SET NULL,
     pickup_info         TEXT,
     pickup_contact      VARCHAR(255),
+    custom_fields       JSONB DEFAULT '{}'::jsonb,
     created_at          TIMESTAMPTZ DEFAULT NOW(),
     updated_at          TIMESTAMPTZ DEFAULT NOW()
 );
@@ -141,7 +142,9 @@ CREATE TABLE form_field_configs (
     show_on_pdf BOOLEAN DEFAULT TRUE,
     display_order INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT form_field_configs_type_check CHECK (type IN ('CORE', 'CUSTOM')),
+    CONSTRAINT form_field_configs_input_type_check CHECK (input_type IN ('TEXT', 'TEXTAREA', 'NUMBER'))
 );
 
 CREATE TABLE pdf_settings (
